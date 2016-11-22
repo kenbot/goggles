@@ -8,6 +8,7 @@ import monocle.macros._
 
 @Lenses case class One(two: Two)
 @Lenses case class Two(optThree: Option[Three])
+@Lenses case class Zwei(optThree: Either[Unit, Three])
 @Lenses case class Three(list: List[One])
 
 object Main {

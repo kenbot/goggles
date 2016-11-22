@@ -3,17 +3,21 @@ package goggles.macros
 import scala.reflect.macros.whitebox
 import monocle._
 
-
 object ContextUtils {
 
-  def getContextString(implicit c: whitebox.Context): String = {
+  def getFullContextString(implicit c: whitebox.Context): String = {
+    import c.universe._
+    getContextStringParts.foldLeft("") {
+      case (full, str) => full + str
+    }
+  }
+
+  def getContextStringParts(implicit c: whitebox.Context): List[String] = {
     import c.universe._
     c.prefix.tree match {
-      case Apply(f, List(Apply(g, rawParts))) =>
-        rawParts.foldLeft("") {
-          case (full, Literal(Constant(str))) => full + str
-        }
+      case Apply(f, List(Apply(g, rawParts))) => rawParts
     }
+    Nil
   }
 
   def ident(name: String)(implicit c: whitebox.Context): c.Tree = {
@@ -23,7 +27,7 @@ object ContextUtils {
 
 
   def getLensOrFail(errorMsg: String)(implicit c: whitebox.Context): c.Tree = {
-    val tokens = getContextString.split("\\.").toList
+    val tokens = getFullContextString.split("\\.").toList
     tokens match {
       case LensTree(tree) => tree
       case _ => c.abort(c.enclosingPosition, errorMsg)    
@@ -98,7 +102,7 @@ object Macros {
 
     import scala.util.{Try, Success, Failure}
 
-    val tokens = getContextString.split("\\.").toList
+    val tokens = getFullContextString.split("\\.").toList
 
     tokens match {
       case targetObjStr :: LensTree(lensTree) =>
