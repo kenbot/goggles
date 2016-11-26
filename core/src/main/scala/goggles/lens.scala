@@ -7,6 +7,6 @@ package object lens {
 
     def get(): Any = macro Macros.getImpl
     def set(): ModifyOps[_, _, _, _] = macro Macros.setImpl
-    def lens(): Any = macro Macros.lensImpl
+    def lens(args: Any*): Any = macro Macros.lensImpl
   }
 }
