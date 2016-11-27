@@ -4,7 +4,7 @@ package goggles.macros
 object Lexer {
   import Token._
 
-  def lexFragments(fragments: List[String]): List[Token] = {
+  def apply(fragments: List[String]): List[Token] = {
     fragments match {
       case Nil => Nil
       case s :: ss => lex(s) ::: ss.flatMap(s => Hole :: lex(s)) 

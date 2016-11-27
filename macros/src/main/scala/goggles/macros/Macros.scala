@@ -9,11 +9,23 @@ object MonocleInterpreter {
   import scalaz._, Scalaz._
   import AST._
 
-  def interpretAppliedComposedLens(c: whitebox.Context)(acl: AppliedComposedLens): State[List[c.Expr[Any]], c.Tree] = {
+  def interpretTarget(c: whitebox.Context)(target: Target): State[List[c.Expr[Any]], c.Tree] = {
+    import c.universe._
+    
+    State { argsLeft => 
 
-    ???
+      def popArg(f: c.Expr[Any] => c.Tree): (List[c.Expr[Any]], c.Tree) = argsLeft match {
+        case a :: as => (as, f(a))
+        case Nil => (Nil, c.abort(c.enclosingPosition, "Internal error: ran out of args"))
+      }
 
+      target match {
+        case NamedTarget(name) => (argsLeft, q"${Ident(TermName(name))}") 
+        case InterpTarget => popArg(a => q"($a)") 
+      }
+    }
   }
+
 
   def interpretComposedLens(c: whitebox.Context)(clens: ComposedLens): State[List[c.Expr[Any]], c.Tree] = {
     import c.universe._
@@ -32,9 +44,8 @@ object MonocleInterpreter {
     }
   }
 
-  def interpretLensExpr(c: whitebox.Context)(lexpr: LensExpr): State[List[c.Expr[Any]], c.Tree] = State {
-    (argsLeft: List[c.Expr[Any]]) => {
-
+  def interpretLensExpr(c: whitebox.Context)(lexpr: LensExpr): State[List[c.Expr[Any]], c.Tree] = 
+    State { argsLeft => 
       import c.universe._
 
       def popArg(f: c.Expr[Any] => c.Tree): (List[c.Expr[Any]], c.Tree) = argsLeft match {
@@ -51,7 +62,7 @@ object MonocleInterpreter {
         case IndexedExpr(InterpIndex) => popArg(a => q"_root_.monocle.function.Index.index($a)")        
       }
     }
-  }
+  
 } 
 
 
@@ -114,25 +125,29 @@ object Macros {
    
   def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
     import c.universe._
+    import MonocleInterpreter._
     import ContextUtils._
 
     val errorMsg = "Expecting one or more lenses separated " + 
                    "by operators \".\", \"*.\", \"?.\" or  " + 
                    "\"[n]\""
 
-    val fragments = getContextStringParts(c) 
-    val tokens = Lexer.lexFragments(fragments)
-    val ast = Parser.parseComposedLens(tokens)
-    val result = ast.map(t => MonocleInterpreter.interpretComposedLens(c)(t))
+    val errorOrAst = Parser.parseComposedLens(Lexer(getContextStringParts(c)))
 
-    result match {
+    val resultState = errorOrAst.map(ast => 
+      interpretComposedLens(c)(ast).eval(args.toList))
+
+    resultState match {
       case Left(err) => c.abort(c.enclosingPosition, err.toString)
-      case Right(resultState) => q"${resultState.run(args.toList)._2}" 
+      case Right(tree) => q"$tree" 
     }
   }
 
-  def setImpl(c: whitebox.Context)(): c.Tree = {
+  def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
     import c.universe._
+    import MonocleInterpreter._
+    import ContextUtils._
+    import AST._
 
     val errorMsg = "Invalid set\"...\" expression: " + 
                    "expecting at least a target object " + 
@@ -140,13 +155,27 @@ object Macros {
                    "lenses: ie. " + 
                    "set\"myUser._company._headCount\" := 5"
 
-    val (targetObj, lens) = getTargetAndLens(errorMsg)(c)
+    val errorOrAst = Parser.parseAppliedComposedLens(Lexer(getContextStringParts(c)))
 
-    q"new goggles.MonocleModifyOps($targetObj, $lens)"
+    val resultState = errorOrAst.map { 
+      case AppliedComposedLens(target, lens) => 
+        for {
+          lensTree <- interpretComposedLens(c)(lens)
+          targetTree <- interpretTarget(c)(target)
+        } yield q"(new _root_.goggles.MonocleModifyOps($targetTree, $lensTree))"
+    }
+
+    resultState match {
+      case Left(err) => c.abort(c.enclosingPosition, err.toString)
+      case Right(tree) => q"${tree.eval(args.toList)}"
+    }
   }
 
-  def getImpl(c: whitebox.Context)(): c.Tree = {
+  def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
     import c.universe._
+    import MonocleInterpreter._
+    import ContextUtils._
+    import AST._
 
     val errorMsg = "Invalid get\"...\" expression: " + 
                    "expecting at least a target object " + 
@@ -154,8 +183,20 @@ object Macros {
                    "lenses: ie. " + 
                    "get\"myUser._company._headCount\""
 
-    val (targetObj, lens) = getTargetAndLens(errorMsg)(c)
-    q"($lens).get($targetObj)"
+    val errorOrAst = Parser.parseAppliedComposedLens(Lexer(getContextStringParts(c)))
+
+    val resultState = errorOrAst.map { 
+      case AppliedComposedLens(target, lens) => 
+        for {
+          lens <- interpretComposedLens(c)(lens)
+          targetObj <- interpretTarget(c)(target)
+        } yield q"($lens).get($targetObj)"
+    }
+
+    resultState match {
+      case Left(err) => c.abort(c.enclosingPosition, err.toString)
+      case Right(tree) => q"${tree.eval(args.toList)}"
+    }
   }
 
   private def getTargetAndLens(errorMsg: String)(implicit c: whitebox.Context): (c.Tree, c.Tree) = {
