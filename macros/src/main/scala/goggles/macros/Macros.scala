@@ -4,129 +4,13 @@ import scala.reflect.macros.whitebox
 import monocle._
 
 
-object MonocleInterpreter {
+object MonocleMacros {
 
   import scalaz._, Scalaz._
   import AST._
 
-  def interpretTarget(c: whitebox.Context)(target: Target): State[List[c.Expr[Any]], c.Tree] = {
-    import c.universe._
-    
-    State { argsLeft => 
-
-      def popArg(f: c.Expr[Any] => c.Tree): (List[c.Expr[Any]], c.Tree) = argsLeft match {
-        case a :: as => (as, f(a))
-        case Nil => (Nil, c.abort(c.enclosingPosition, "Internal error: ran out of args"))
-      }
-
-      target match {
-        case NamedTarget(name) => (argsLeft, q"${Ident(TermName(name))}") 
-        case InterpTarget => popArg(a => q"($a)") 
-      }
-    }
-  }
-
-
-  def interpretComposedLens(c: whitebox.Context)(clens: ComposedLens): State[List[c.Expr[Any]], c.Tree] = {
-    import c.universe._
-
-    type ArgState[A] = State[List[c.Expr[Any]], A]
-
-    val treeState: ArgState[List[c.Tree]] = 
-    clens.list.traverse[ArgState, c.Tree](lexpr => interpretLensExpr(c)(lexpr))
-
-    treeState.map { trees => 
-      val head :: tail = trees 
-
-      tail.foldLeft(q"$head"){(accum, tr) => 
-        q"($accum).composeLens($tr)"
-      }
-    }
-  }
-
-  def interpretLensExpr(c: whitebox.Context)(lexpr: LensExpr): State[List[c.Expr[Any]], c.Tree] = 
-    State { argsLeft => 
-      import c.universe._
-
-      def popArg(f: c.Expr[Any] => c.Tree): (List[c.Expr[Any]], c.Tree) = argsLeft match {
-        case a :: as => (as, f(a))
-        case Nil => (Nil, c.abort(c.enclosingPosition, "Internal error: ran out of args"))
-      }
-
-      lexpr match {
-        case RefExpr(NamedLensRef(name)) => (argsLeft, q"${Ident(TermName(name))}") 
-        case RefExpr(InterpLensRef) => popArg(a => q"($a)")        
-        case EachExpr => (argsLeft, q"_root_.monocle.function.Each.each") 
-        case OptExpr => (argsLeft, q"_root_.monocle.std.option.pSome") 
-        case IndexedExpr(LiteralIndex(i)) => (argsLeft, q"_root_.monocle.function.Index.index(${Literal(Constant(i))})") 
-        case IndexedExpr(InterpIndex) => popArg(a => q"_root_.monocle.function.Index.index($a)")        
-      }
-    }
-  
-} 
-
-
-
-
-object ContextUtils {
-
-  def getFullContextString(implicit c: whitebox.Context): String = {
-    import c.universe._
-    getContextStringParts.foldLeft("") {
-      case (full, str) => full + str
-    }
-  }
-
-  def getContextStringParts(implicit c: whitebox.Context): List[String] = {
-    import c.universe._
-
-    c.prefix.tree match {
-      case Apply(f, List(Apply(g, rawParts))) => rawParts.map {
-        case Literal(Constant(str: String)) => str
-      }
-    }
-  }
-
-  def ident(name: String)(implicit c: whitebox.Context): c.Tree = {
-    import c.universe._
-    q"${Ident(TermName(name))}"
-  }
-
-
-  def getLensOrFail(errorMsg: String)(implicit c: whitebox.Context): c.Tree = {
-    val tokens = getFullContextString.split("\\.").toList
-    tokens match {
-      case LensTree(tree) => tree
-      case _ => c.abort(c.enclosingPosition, errorMsg)    
-    }
-  }
-
-  object LensTree {
-    def unapply(lensStrs: List[String])(implicit c: whitebox.Context): Option[c.Tree] = {
-      import c.universe._
-      lensStrs match {
-        case Nil => None
-        case firstLensStr :: otherLensStrs =>
-          val firstLensIdent: c.Tree = ident(firstLensStr)
-          val otherLensIdents = otherLensStrs.map(s => ident(s))
-
-          val lensTree: c.Tree = otherLensIdents.foldLeft(firstLensIdent) {
-            (tree, lens) => q"$tree.composeLens($lens)"
-          }
-
-          Some(lensTree)
-      }
-    }
-  }
-}
-
-
-object Macros {
-   
   def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
     import c.universe._
-    import MonocleInterpreter._
-    import ContextUtils._
 
     val errorMsg = "Expecting one or more lenses separated " + 
                    "by operators \".\", \"*.\", \"?.\" or  " + 
@@ -145,8 +29,6 @@ object Macros {
 
   def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
     import c.universe._
-    import MonocleInterpreter._
-    import ContextUtils._
     import AST._
 
     val errorMsg = "Invalid set\"...\" expression: " + 
@@ -162,7 +44,14 @@ object Macros {
         for {
           lensTree <- interpretComposedLens(c)(lens)
           targetTree <- interpretTarget(c)(target)
-        } yield q"(new _root_.goggles.MonocleModifyOps($targetTree, $lensTree))"
+        } yield {
+          val setterTree = typeCheckUntilSomethingWorks(c)(
+            q"($lensTree).asSetter",
+            q"($lensTree)")(
+            "Expecting a Monocle optic that can set values")
+
+          q"(new _root_.goggles.MonocleModifyOps($targetTree, $setterTree))"
+        }
     }
 
     resultState match {
@@ -173,8 +62,6 @@ object Macros {
 
   def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
     import c.universe._
-    import MonocleInterpreter._
-    import ContextUtils._
     import AST._
 
     val errorMsg = "Invalid get\"...\" expression: " + 
@@ -188,9 +75,15 @@ object Macros {
     val resultState = errorOrAst.map { 
       case AppliedComposedLens(target, lens) => 
         for {
-          lens <- interpretComposedLens(c)(lens)
-          targetObj <- interpretTarget(c)(target)
-        } yield q"($lens).get($targetObj)"
+          lensTree <- interpretComposedLens(c)(lens)
+          targetTree <- interpretTarget(c)(target)
+        } yield {
+          typeCheckUntilSomethingWorks(c)(
+            q"($lensTree).get($targetTree)",
+            q"($lensTree).getAll($targetTree)",
+            q"($lensTree).getOption($targetTree)")(
+            "Expecting a Monocle optic that can return values") 
+        }
     }
 
     resultState match {
@@ -199,21 +92,82 @@ object Macros {
     }
   }
 
-  private def getTargetAndLens(errorMsg: String)(implicit c: whitebox.Context): (c.Tree, c.Tree) = {
+  private def interpretTarget(c: whitebox.Context)(target: Target): State[List[c.Expr[Any]], c.Tree] = {
     import c.universe._
-    import ContextUtils._
+    
+    State { argsLeft => 
 
-    import scala.util.{Try, Success, Failure}
+      def popArg(f: c.Expr[Any] => c.Tree): (List[c.Expr[Any]], c.Tree) = argsLeft match {
+        case a :: as => (as, f(a))
+        case Nil => (Nil, c.abort(c.enclosingPosition, "Internal error: ran out of args"))
+      }
 
-    val tokens = getFullContextString.split("\\.").toList
+      target match {
+        case NamedTarget(name) => (argsLeft, q"${Ident(TermName(name))}") 
+        case InterpTarget => popArg(a => q"($a)") 
+      }
+    }
+  }
 
-    tokens match {
-      case targetObjStr :: LensTree(lensTree) =>
-        (ident(targetObjStr), lensTree)
 
-      case _ => 
-        c.abort(c.enclosingPosition, errorMsg)    
+  private def interpretComposedLens(c: whitebox.Context)(clens: ComposedLens): State[List[c.Expr[Any]], c.Tree] = {
+    import c.universe._
+
+    type ArgState[A] = State[List[c.Expr[Any]], A]
+
+    val treeState: ArgState[List[c.Tree]] = 
+      clens.list.traverse[ArgState, c.Tree](lexpr => interpretLensExpr(c)(lexpr))
+
+
+    treeState.map { trees => 
+      val head :: tail = trees 
+
+      tail.foldLeft(q"($head)"){ (accum, tr) => 
+        val operators = List("composeIso", "composeLens", "composePrism",
+                             "composeOptional", "composeGetter", "composeTraversal", 
+                             "composeFold", "composeSetter")
+
+        typeCheckUntilSomethingWorks(c)(
+          operators.map(o => q"($accum).${TermName(o)}($tr)"): _*)(
+          s"Expecting a Monocle optic type: ${show(tr)}")
+      }
+    }
+  }
+
+
+  private def interpretLensExpr(c: whitebox.Context)(lexpr: LensExpr): State[List[c.Expr[Any]], c.Tree] = 
+    State { argsLeft => 
+      import c.universe._
+
+      def popArg(f: c.Expr[Any] => c.Tree): (List[c.Expr[Any]], c.Tree) = argsLeft match {
+        case a :: as => (as, f(a))
+        case Nil => (Nil, c.abort(c.enclosingPosition, "Internal error: ran out of args"))
+      }
+
+      lexpr match {
+        case RefExpr(NamedLensRef(name)) => (argsLeft, q"${Ident(TermName(name))}") 
+        case RefExpr(InterpLensRef) => popArg(a => q"($a)")        
+        case EachExpr => (argsLeft, q"_root_.monocle.function.Each.each") 
+        case OptExpr => (argsLeft, q"_root_.monocle.std.option.pSome") 
+        case IndexedExpr(LiteralIndex(i)) => (argsLeft, q"_root_.monocle.function.Index.index(${Literal(Constant(i))})") 
+        case IndexedExpr(InterpIndex) => popArg(a => q"_root_.monocle.function.Index.index($a)")        
+      }
     }
 
+  private def typeCheckUntilSomethingWorks(c: whitebox.Context)(trees: c.Tree*)(errorMsg: String): c.Tree = {
+    trees.map(t => c.typecheck(t, silent = true)).find(_.nonEmpty).getOrElse(
+      c.abort(c.enclosingPosition, errorMsg))
+  }
+  
+   
+
+  private def getContextStringParts(implicit c: whitebox.Context): List[String] = {
+    import c.universe._
+
+    c.prefix.tree match {
+      case Apply(f, List(Apply(g, rawParts))) => rawParts.map {
+        case Literal(Constant(str: String)) => str
+      }
+    }
   }
 }

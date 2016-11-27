@@ -30,4 +30,9 @@ lazy val core = (project in file("core")).dependsOn(macros).settings(
   addCompilerPlugin("org.scalamacros" %% "paradise" % "2.1.0" cross CrossVersion.full)
 )
 
-initialCommands in core += "import monocle._, Monocle._, goggles._, goggles.lens._, goggles.macros._;\n"
+initialCommands in core += """
+  import monocle._; 
+  import goggles._; 
+  import goggles.lens._; 
+  import goggles.macros._;
+  """

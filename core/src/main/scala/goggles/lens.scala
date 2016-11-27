@@ -5,8 +5,8 @@ package object lens {
     import goggles.macros._
     import scala.language.experimental.macros
 
-    def get(args: Any*): Any = macro Macros.getImpl
-    def set(args: Any*): ModifyOps[_, _, _, _] = macro Macros.setImpl
-    def lens(args: Any*): Any = macro Macros.lensImpl
+    def get(args: Any*): Any = macro MonocleMacros.getImpl
+    def set(args: Any*): ModifyOps[_, _, _, _] = macro MonocleMacros.setImpl
+    def lens(args: Any*): Any = macro MonocleMacros.lensImpl
   }
 }
