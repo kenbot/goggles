@@ -44,14 +44,7 @@ object MonocleMacros {
         for {
           lensTree <- interpretComposedLens(c)(lens)
           targetTree <- interpretTarget(c)(target)
-        } yield {
-          val setterTree = typeCheckUntilSomethingWorks(c)(
-            q"($lensTree).asSetter",
-            q"($lensTree)")(
-            "Expecting a Monocle optic that can set values")
-
-          q"(new _root_.goggles.MonocleModifyOps($targetTree, $setterTree))"
-        }
+        } yield q"(new _root_.goggles.MonocleModifyOps($targetTree, ($lensTree).asSetter))"
     }
 
     resultState match {
@@ -81,8 +74,7 @@ object MonocleMacros {
           typeCheckUntilSomethingWorks(c)(
             q"($lensTree).get($targetTree)",
             q"($lensTree).getAll($targetTree)",
-            q"($lensTree).getOption($targetTree)")(
-            "Expecting a Monocle optic that can return values") 
+            q"($lensTree).getOption($targetTree)")
         }
     }
 
@@ -123,13 +115,12 @@ object MonocleMacros {
       val head :: tail = trees 
 
       tail.foldLeft(q"($head)"){ (accum, tr) => 
-        val operators = List("composeIso", "composeLens", "composePrism",
+        val operators = List("composeLens", "composeIso", "composePrism",
                              "composeOptional", "composeGetter", "composeTraversal", 
                              "composeFold", "composeSetter")
 
         typeCheckUntilSomethingWorks(c)(
-          operators.map(o => q"($accum).${TermName(o)}($tr)"): _*)(
-          s"Expecting a Monocle optic type: ${show(tr)}")
+          operators.map(o => q"($accum).${TermName(o)}($tr)"): _*)
       }
     }
   }
@@ -154,11 +145,10 @@ object MonocleMacros {
       }
     }
 
-  private def typeCheckUntilSomethingWorks(c: whitebox.Context)(trees: c.Tree*)(errorMsg: String): c.Tree = {
-    trees.map(t => c.typecheck(t, silent = true)).find(_.nonEmpty).getOrElse(
-      c.abort(c.enclosingPosition, errorMsg))
-  }
-  
+  private def typeCheckUntilSomethingWorks(c: whitebox.Context)(trees: c.Tree*): c.Tree = 
+    trees.find(t => c.typecheck(t, silent = true).nonEmpty).
+      orElse(trees.headOption).
+      getOrElse(c.abort(c.enclosingPosition, "Internal error: no trees to typecheck"))
    
 
   private def getContextStringParts(implicit c: whitebox.Context): List[String] = {

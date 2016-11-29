@@ -30,7 +30,7 @@ object Lexer {
         case '?' :: tail => loop(Nil, tail, Question :: mkName(nameSoFar) ::: tokens) 
         case '[' :: tail => loop(Nil, tail, OpenBracket :: mkName(nameSoFar) ::: tokens) 
         case ']' :: tail => loop(Nil, tail, CloseBracket :: mkName(nameSoFar) ::: tokens) 
-        case x => Unrecognised(s"Unrecognised character: '$x'") :: tokens 
+        case x => Unrecognised(x.toString) :: tokens
       }
     }
 

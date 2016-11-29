@@ -7,12 +7,17 @@ scalaVersion in ThisBuild := "2.12.0"
 run := run in Compile in core
 
 val monocleVersion = "1.3.2"
+val scalacheckVersion = "3.8.6"
 resolvers += Resolver.sonatypeRepo("releases")
 resolvers += Resolver.sonatypeRepo("snapshots")
 
 lazy val macros = (project in file("macros")).settings(
   libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-  libraryDependencies += "com.github.julien-truffaut"  %%  "monocle-core"    % monocleVersion
+  libraryDependencies += "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
+  libraryDependencies += "org.specs2" %% "specs2-core" % scalacheckVersion % "test",
+  libraryDependencies += "org.specs2" %% "specs2-scalacheck" % scalacheckVersion % "test",
+  scalacOptions in Test += "-Yrangepos",
+  scalacOptions += "-language:experimental.macros"
 )
 
 val monocleDeps = Seq(
@@ -27,7 +32,8 @@ val monocleDeps = Seq(
 
 lazy val core = (project in file("core")).dependsOn(macros).settings(
   libraryDependencies ++= monocleDeps,
-  addCompilerPlugin("org.scalamacros" %% "paradise" % "2.1.0" cross CrossVersion.full)
+  addCompilerPlugin("org.scalamacros" %% "paradise" % "2.1.0" cross CrossVersion.full),
+  scalacOptions += "-language:experimental.macros"
 )
 
 initialCommands in core += """
@@ -35,4 +41,5 @@ initialCommands in core += """
   import goggles._; 
   import goggles.lens._; 
   import goggles.macros._;
+
   """

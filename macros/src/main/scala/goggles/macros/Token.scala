@@ -1,8 +1,5 @@
 package goggles.macros
 
-import scala.reflect.macros.whitebox
-
-
 sealed trait Token
 
 object Token {

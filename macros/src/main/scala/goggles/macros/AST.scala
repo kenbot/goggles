@@ -1,8 +1,5 @@
 package goggles.macros
 
-import scala.reflect.macros.whitebox
-
-
 object AST {
 
   case class ComposedLens(first: LensExpr, rest: List[LensExpr]) {

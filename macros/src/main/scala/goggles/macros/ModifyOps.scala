@@ -1,6 +1,4 @@
-package goggles
-
-import monocle._
+package goggles.macros
 
 
 trait ModifyOps[S,T,A,B] {
@@ -22,6 +20,3 @@ trait ModifyOps[S,T,A,B] {
     this ~= (a => num.div(eq(a), b))
 }
 
-class MonocleModifyOps[S,T,A,B](targetObj: S, lens: PSetter[S,T,A,B]) extends ModifyOps[S,T,A,B] {
-  override def ~=(f: A => B): T = lens.modify(f)(targetObj)
-}
