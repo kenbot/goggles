@@ -2,6 +2,6 @@ package goggles.macros
 
 import monocle.PSetter
 
-class MonocleModifyOps[S,T,A,B](targetObj: S, setter: PSetter[S,T,A,B]) extends ModifyOps[S,T,A,B] {
-  override def ~=(f: A => B): T = setter.modify(f)(targetObj)
+class MonocleModifyOps[T,A,B](setter: PSetter[Unit,T,A,B]) extends ModifyOps[Unit,T,A,B] {
+  override def ~=(f: A => B): T = setter.modify(f)(())
 }

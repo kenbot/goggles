@@ -2,23 +2,18 @@ package goggles.macros
 
 import scala.util.Try
 
-
+import scalaz._, Scalaz._
 
 object Parser {
-
   import AST._
   import Token._
 
-  def parseAppliedComposedLens(tokens: List[Token]): Either[ParseError, AppliedComposedLens] = {
+  def parseAppliedLens(tokens: List[Token]): Either[ParseError, AppliedLens] = {
     tokens match {
       case Nil => Left(EndOfExpr)
-      case tok :: rest => for {
-        target <- parseTarget(tok)
-        composedLenses <- parseComposedLens(rest)
-      } yield AppliedComposedLens(target, composedLenses)
-
+      case Hole :: rest => parseComposedLens(rest).map(AppliedLens)
+      case x :: _ => Left(ParseTargetFailed(x))
     }
-
   }
 
   def parseComposedLens(tokens: List[Token]): Either[ParseError, ComposedLens] = {
@@ -27,7 +22,7 @@ object Parser {
       parseLensExpr(remaining) match {
         case (Nil, Right(lensExpr)) =>
           val h :: t = (lensExpr :: exprs).reverse
-          Right(ComposedLens(h, t))
+          Right(ComposedLens(NonEmptyList(h, t: _*)))
 
         case (rest, Right(lensExpr)) => loop(rest, lensExpr :: exprs) 
         case (_, Left(err)) => Left(err) 
@@ -37,7 +32,6 @@ object Parser {
     loop(tokens, Nil)
 
   }
-
 
   def parseLensExpr(tokens: List[Token]): (List[Token], Either[ParseError, LensExpr]) = {
     tokens match {
@@ -50,24 +44,13 @@ object Parser {
       case rest => (rest, Left(ParseLensExprFailed(rest)))
 
     }
-
-    
   }
-
 
   def parseLensRef(t: Token): Either[ParseError, LensRef] = {
     t match {
       case Name(name) => Right(NamedLensRef(name)) 
       case Hole => Right(InterpLensRef) 
       case _ => Left(ParseLensRefFailed(t)) 
-    }
-  }
-
-  def parseTarget(t: Token): Either[ParseError, Target] = {
-    t match {
-      case Name(name) => Right(NamedTarget(name)) 
-      case Hole => Right(InterpTarget) 
-      case _ => Left(ParseTargetFailed(t)) 
     }
   }
 

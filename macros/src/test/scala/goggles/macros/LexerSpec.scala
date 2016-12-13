@@ -4,6 +4,7 @@ import org.specs2._
 
 import Token._
 
+
 class LexerSpec extends Specification with ScalaCheck { def is =
   s2"""
     Lexer should:
@@ -41,7 +42,7 @@ class LexerSpec extends Specification with ScalaCheck { def is =
     Lexer(List(".alpha123.")) === List(Dot, Name("alpha123"), Dot)
 
   def gibberish = prop { char: Char =>
-    (!char.isLetterOrDigit && !List('[', ']', '.', '*', '.').contains(char)) ==> {
+    (!char.isLetterOrDigit && !Set('[', ']', '.', '*', '_')(char)) ==> {
       Lexer(List(char.toString)) === List(Unrecognised(char.toString))
     }
   }
