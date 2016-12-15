@@ -167,51 +167,87 @@ object MonocleMacros {
     } yield composeLensTrees(c)(nonEmptyExprs)
   }
 
-  private def typedLensExpr(c: whitebox.Context)(lens: c.Expr[Any]): Parse[Option[c.Type], c.Expr[Any], c.Expr[Any]] = {
-    import c.universe._
-    println(lens)
-    Parse.setState(Option(lens.actualType.typeArgs(1))).map(_ => lens)
-  }
-
-  private def popTypedLensExpr(c: whitebox.Context): Parse[Option[c.Type], c.Expr[Any], c.Expr[Any]] = {
-    import c.universe._
-    for {
-      arg <- Parse.popArg
-      expr  <- typedLensExpr(c)(arg)
-    } yield c.Expr(q"($expr)")
-  }
 
   private def interpretLensExpr(c: whitebox.Context)(lexpr: LensExpr): Parse[Option[c.Type], c.Expr[Any], c.Expr[Any]] = {
     import c.universe._
 
-    lexpr match {
-      case RefExpr(NamedLensRef(name)) => Parse.getState.flatMap {
-        case Some(inputType) =>
-          val nextType = inputType.member(TermName(name)).info
-          Parse.setState(Option(nextType)).map { _ =>
-            c.Expr(q"_root_.monocle.Getter[$inputType, $WildcardType](_.${TermName(name)})")
-          }
+    type Interpret[A] = Parse[Option[c.Type], c.Expr[Any], A]
 
-        case None => Parse.raiseError(NamedLensWithoutType(name))
+    def setOutputType(t: c.Type): Interpret[Unit] =
+      Parse.setState(Option(t))
+
+    def typeCheckOrElse(tree: c.Tree, orElse: => ParseError): Interpret[c.Tree] =
+      try Parse.result(c.typecheck(tree))
+      catch { case NonFatal(_) => Parse.raiseError(orElse) }
+
+    def patternMatchOrElse[A, R](a: A, orElse: => ParseError)(pf: PartialFunction[A,R]): Interpret[R] =
+      if (pf.isDefinedAt(a)) Parse.result(pf(a))
+      else Parse.raiseError(orElse)
+
+    def getInputTypeOrElse(orElse: => ParseError): Interpret[c.Type] =
+      Parse.getState.flatMap {
+        case Some(inputType) => Parse.result(inputType)
+        case None => Parse.raiseError(orElse)
       }
 
-      case RefExpr(InterpLensRef) => popTypedLensExpr(c)
-      case EachExpr =>
-        Parse.getState[Option[c.Type], c.Expr[Any]].flatMap {
-          case Some(inputType) =>
-            val tree = c.typecheck(q"_root_.monocle.function.Each.each[$inputType, $WildcardType]")
-            val nextType = tree match {
-              case Apply(_, List(TypeApply(_, List(next)))) => next.tpe
-            }
-            Parse.setState(Option(nextType)).map(_ => c.Expr(tree))
+    def interpretNamedRef(name: String): Interpret[c.Expr[Any]] = {
+      for {
+        inputType <- getInputTypeOrElse(MissingInputType(name))
+        outputType = inputType.member(TermName(name)).info
+        _ <- setOutputType(outputType)
+      } yield c.Expr(q"_root_.monocle.Getter[$inputType, $outputType](_.${TermName(name)})")
+    }
 
-          case None => Parse.raiseError(NamedLensWithoutType("*"))
+    def interpretInterpolatedRef: Interpret[c.Expr[Any]] = {
+      for {
+        lens <- Parse.popArg[Option[c.Type], c.Expr[Any]]
+        outputType = lens.actualType.typeArgs(1)
+        _ <- setOutputType(outputType)
+      } yield lens
+    }
+
+    def interpretEach: Interpret[c.Expr[Any]] = {
+      for {
+        inputType <- getInputTypeOrElse(MissingInputType("*"))
+        untypedTree = q"_root_.monocle.function.Each.each[$inputType, $WildcardType]"
+        typedTree <- typeCheckOrElse(untypedTree, ImplicitEachNotFound(inputType.toString))
+        outputType <- patternMatchOrElse(typedTree, ImplicitEachNotFound(inputType.toString)) {
+                        case Apply(_, List(TypeApply(_, List(next)))) => next.tpe
+                      }
+        _ <- setOutputType(outputType)
+      } yield c.Expr(typedTree)
+    }
+
+    def interpretOpt: Interpret[c.Expr[Any]] = {
+      for {
+        inputType <- getInputTypeOrElse(MissingInputType("?"))
+        optionSymbol = c.symbolOf[scala.Option[_]]
+        outputType <- patternMatchOrElse(inputType, OptionNotFound(inputType.toString)) {
+                        case TypeRef(_, `optionSymbol`, List(next)) => next
+                      }
+        _ <- setOutputType(outputType)
+      } yield c.Expr(q"_root_.monocle.std.option.some[$outputType]")
+    }
+
+    def interpretIndex(i: c.Expr[Any]): Interpret[c.Expr[Any]] = {
+      for {
+        inputType <- getInputTypeOrElse(MissingInputType("[n]"))
+        untypedTree = q"_root_.monocle.function.Index.index[$inputType, $WildcardType, $WildcardType]($i)"
+        typedTree <- typeCheckOrElse(untypedTree, ImplicitIndexNotFound(inputType.toString))
+        outputType <- patternMatchOrElse(typedTree, ImplicitIndexNotFound(inputType.toString)) {
+          case Apply(_, List(TypeApply(_, List(next)))) => next.tpe
         }
+        _ <- setOutputType(outputType)
+      } yield c.Expr(typedTree)
+    }
 
-      case OptExpr => typedLensExpr(c)(c.Expr(q"_root_.monocle.std.option.pSome"))
-      case IndexedExpr(LiteralIndex(i)) => typedLensExpr(c)(c.Expr(q"_root_.monocle.function.Index.index(${Literal(Constant(i))})"))
-      case IndexedExpr(InterpIndex) =>
-        popTypedLensExpr(c).map(e => c.Expr(q"_root_.monocle.function.Index.index($e)"))
+    lexpr match {
+      case RefExpr(NamedLensRef(name)) => interpretNamedRef(name)
+      case RefExpr(InterpLensRef) => interpretInterpolatedRef
+      case EachExpr => interpretEach
+      case OptExpr => interpretOpt
+      case IndexedExpr(LiteralIndex(i)) => interpretIndex(c.Expr(q"$i"))
+      case IndexedExpr(InterpIndex) => Parse.popArg.flatMap(i => interpretIndex(i))
     }
   }
 
