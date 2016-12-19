@@ -1,6 +1,9 @@
 package goggles
 
+import monocle.Prism
 import org.specs2._
+
+import monocle.std.all._
 
 object Fixture {
 
@@ -13,45 +16,44 @@ object Fixture {
 }
 
 class GogglesDslSpec extends Specification with ScalaCheck { def is =
-
   s2"""
       "get" DSL scenarios:
-         get"foo.bar" $getDot
-         get"foo.bar.blah" $getDotDot
-         get"foo*" $getStar
-         get"foo**" $getStarStar
-         get"foo*.bar" $getStarDot
-         get"foo.bar*" $getDotStar
-         get"foo?" $getQ
-         get"foo?" (failed) $getQFailed
-         get"foo?? $getQQ
-         get"foo?.bar" $getQDot
-         get"foo.bar?" $getDotQ
-         get"foo[0]" $getIndex
-         get"foo[n]" $getInterpIndex
-         get"foo[0][0]" $getIndexIndex
-         get"foo[0].bar" $getIndexDot
-         get"foo.bar[0]" $getDotIndex
-         get"foo.bar[0]" (failed) $getDotIndexFailed
+         get"$$foo.bar" $getDot
+         get"$$foo.bar.blah" $getDotDot
+         get"$$foo*" $getStar
+         get"$$foo**" $getStarStar
+         get"$$foo*.bar" $getStarDot
+         get"$$foo.bar*" $getDotStar
+         get"$$foo?" $getQ
+         get"$$foo?" (failed) $getQFailed
+         get"$$foo?? $getQQ
+         get"$$foo?.bar" $getQDot
+         get"$$foo.bar?" $getDotQ
+         get"$$foo[0]" $getIndex
+         get"$$foo[n]" $getInterpIndex
+         get"$$foo[0][0]" $getIndexIndex
+         get"$$foo[0].bar" $getIndexDot
+         get"$$foo.bar[0]" $getDotIndex
+         get"$$foo.bar[0]" (failed) $getDotIndexFailed
 
      "set" DSL scenarios:
-         set"foo.bar" ~= f $setDot
-         set"foo.bar.blah" ~= f $setDotDot
-         set"foo*" ~= f $setStar
-         set"foo**" ~= f $setStarStar
-         set"foo*.bar" ~= f $setStarDot
-         set"foo.bar*" ~= f $setDotStar
-         set"foo?" ~= f $setQ
-         set"foo?" ~= f (failed) $setQFailed
-         set"foo?? ~= f $setQQ
-         set"foo?.bar" ~= f $setQDot
-         set"foo.bar?" ~= f $setDotQ
-         set"foo[0]" ~= f $setIndex
-         set"foo[n]" ~= f $setInterpIndex
-         set"foo[0][0]" ~= f $setIndexIndex
-         set"foo[0].bar" ~= f $setIndexDot
-         set"foo.bar[0]" ~= f $setDotIndex
-         set"foo.bar[0]" ~= f (failed) $setDotIndexFailed
+         set"$$foo.bar" ~= f $setDot
+         set"$$foo.bar.blah" ~= f $setDotDot
+         set"$$foo*" ~= f $setStar
+         set"$$foo**" ~= f $setStarStar
+         set"$$foo*.bar" ~= f $setStarDot
+         set"$$foo.bar*" ~= f $setDotStar
+         set"$$foo?" ~= f $setQ
+         set"$$foo?" ~= f (failed) $setQFailed
+         set"$$foo?? ~= f $setQQ
+         set"$$foo?.bar" ~= f $setQDot
+         set"$$foo.bar?" ~= f $setDotQ
+         set"$$foo[0]" ~= f $setIndex
+         set"$$foo[n]" ~= f $setInterpIndex
+         set"$$foo[0][0]" ~= f $setIndexIndex
+         set"$$foo[0].bar" ~= f $setIndexDot
+         set"$$foo.bar[0]" ~= f $setDotIndex
+         set"$$foo.bar[0]" ~= f (failed) $setDotIndexFailed
    """
 
   import Fixture._
@@ -77,16 +79,16 @@ class GogglesDslSpec extends Specification with ScalaCheck { def is =
     get"$myBasket.items*" === List(Item(11),Item(22),Item(33))
 
   def getQ =
-    get"${Right(44)}?" === Some(44)
+    get"${Option(44)}?" === Some(44)
 
   def getQFailed =
-    get"${Left("nope")}?" === None
+    get"${Option.empty}?" === None
 
   def getQQ =
-    get"${Right(Some(44))}??" === Some(44)
+    get"${Option(Option(44))}??" === Some(44)
 
   def getQDot =
-    get"${Some(Item(123))}?.qty" === Some(123)
+    get"${Option(Item(123))}?.qty" === Some(123)
 
   def getDotQ =
     get"$myBasket.discount?" === Some(44)
@@ -114,7 +116,7 @@ class GogglesDslSpec extends Specification with ScalaCheck { def is =
     get"$myBasket.items[66]" == None
 
   def setDot =
-    (set"$myBasket.items" ~= (_ ::= Item(77))) === myBasket.copy(items = Item(77) :: myItemList)
+    (set"$myBasket.items" ~= (items => Item(77) :: items)) === myBasket.copy(items = Item(77) :: myItemList)
 
   def setDotDot =
     (set"$myBasket.user.name" ~= ("Mrs " + _)) === myBasket.copy(user = User("Mrs Wally"))
@@ -131,19 +133,19 @@ class GogglesDslSpec extends Specification with ScalaCheck { def is =
     (set"$myItemList*.qty" ~= (_ + 1)) === List(12,23,34)
 
   def setDotStar =
-    (set"$myBasket.items*" ~= (it => Item(it.qty * 2))) === List(Item(11),Item(22),Item(33))
+    (set"$myBasket.items*" ~= (it => Item(it.qty * 2))) === List(Item(22),Item(44),Item(66))
 
   def setQ =
-    set"${Right(44)}?" === Some(44)
+    set"${Option(44)}?" === Some(44)
 
   def setQFailed =
-    get"${Left("nope")}?" === None
+    get"${Option.empty}?" === None
 
   def setQQ =
-    get"${Right(Some(44))}??" === Some(44)
+    get"${Option(Option(44))}??" === Some(44)
 
   def setQDot =
-    get"${Some(Item(123))}?.qty" === Some(123)
+    get"${Option(Item(123))}?.qty" === Some(123)
 
   def setDotQ =
     get"$myBasket.discount?" === Some(44)
