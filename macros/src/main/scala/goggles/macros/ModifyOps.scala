@@ -1,5 +1,7 @@
 package goggles.macros
 
+import scala.collection.generic.CanBuildFrom
+
 
 trait ModifyOps[S,T,A,B] {
   def ~=(f: A => B): T
@@ -16,7 +18,7 @@ trait ModifyOps[S,T,A,B] {
   final def *=(b: B)(implicit eq: A =:= B, num: Numeric[B]): T =
     this ~= (a => num.times(eq(a), b))
 
-  final def /=(b: B)(implicit eq: A =:= B, num: Fractional[B]): T =
-    this ~= (a => num.div(eq(a), b))
+  final def ++=[E](b: B)(implicit eq: A =:= B, toSeq: B <:< Seq[E], cbf: CanBuildFrom[Seq[E], E, B]): T =
+    this ~= (a => toSeq(eq(a)) ++ b)
 }
 

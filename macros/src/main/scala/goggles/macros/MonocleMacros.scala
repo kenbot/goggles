@@ -118,6 +118,7 @@ object MonocleMacros {
 
   def const[A,B](a: => A) = PIso[Unit, B, A ,B](_ => a)(identity)
 
+
   private def composeLensTrees(c: whitebox.Context)(exprs: NonEmptyList[c.Expr[Any]]): c.Tree = {
     import c.universe._
     import scalaz._, Scalaz._

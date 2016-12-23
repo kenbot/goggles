@@ -11,6 +11,7 @@ case class GetNotAllowed(resultType: String) extends ParseError
 case class SetNotAllowed(resultType: String) extends ParseError
 case class InvalidGetter(resultType: String) extends ParseError
 case class InvalidSetter(resultType: String) extends ParseError
+case class OpticTypecheckFailed(expr: String) extends ParseError
 case class ImplicitEachNotFound(inputType: String) extends ParseError
 case class ImplicitIndexNotFound(inputType: String) extends ParseError
 case class OptionNotFound(inputType: String) extends ParseError

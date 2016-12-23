@@ -41,16 +41,20 @@ lazy val core = (project in file("core")).dependsOn(macros).settings(
 )
 
 initialCommands in core := """
- import monocle._, Monocle._;
- import goggles._;
- import goggles.macros._;
+  import monocle._, Monocle._;
+  import goggles._;
+  import goggles.macros._;
 
- case class Banana(foo: Int);
- case class Bunch(banana: Banana);
- val bananaFoo = monocle.macros.GenLens[Banana](_.foo);
- val bunchBanana = monocle.macros.GenLens[Bunch](_.banana);
- val myBunch = Bunch(Banana(34));
- val evenPrism = Prism[Int,Int](i => if (i % 2 == 0) Some(i) else None)(i => i)
- val bunches = List(Bunch(Banana(1)), Bunch(Banana(2)), Bunch(Banana(3)))
- 
+  case class Item(qty: Int);
+  case class User(name: String);
+  case class ShoppingBasket(user: User, items: List[Item], discount: Option[Int]);
+
+  val myItemList = List(Item(11), Item(22), Item(33));
+  val myBasket = ShoppingBasket(User("Wally"), myItemList, Some(44));
+
+  val itemQty = monocle.macros.GenLens[Item](_.qty);
+  val userName = monocle.macros.GenLens[User](_.name);
+  val basketUser = monocle.macros.GenLens[ShoppingBasket](_.user);
+  val basketItems = monocle.macros.GenLens[ShoppingBasket](_.items);
+  val basketDiscount = monocle.macros.GenLens[ShoppingBasket](_.discount);
 """
