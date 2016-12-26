@@ -1,9 +1,11 @@
 package goggles.macros
 
-sealed trait AccessMode
+import goggles.macros.OpticType.{LensType, SetterType, GetterType}
+
+sealed abstract class AccessMode(val opticType: OpticType)
 
 private[goggles] object AccessMode {
-  case object Get extends AccessMode
-  case object Set extends AccessMode
-  case object GetAndSet extends AccessMode
+  case object Get extends AccessMode(GetterType)
+  case object Set extends AccessMode(SetterType)
+  case object GetAndSet extends AccessMode(LensType)
 }

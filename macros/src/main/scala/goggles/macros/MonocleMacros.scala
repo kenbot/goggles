@@ -1,5 +1,7 @@
 package goggles.macros
 
+import goggles.macros.OpticType.{OptionalType, PrismType, TraversalType}
+
 import scala.reflect.macros.whitebox
 import monocle._
 
@@ -15,8 +17,6 @@ object MonocleMacros {
     import c.universe._
     import AST._
 
-    val errorOrAst = Parser.parseAppliedLens(Lexer(getContextStringParts(c)))
-
     type Interpret[A] = Parse[Option[c.Type], c.Expr[Any], A]
 
     def getterExpression(tree: c.Tree): Interpret[c.Tree] = {
@@ -26,16 +26,22 @@ object MonocleMacros {
       } yield q"($tree).${TermName(verb)}(())"
 
       finalTree match {
-        case Some(t) => Parse.result(t)
+        case Some(t) => Parse.pure(t)
         case None => Parse.raiseError(GetNotAllowed(tree.toString))
       }
     }
 
-    val result = errorOrAst.flatMap { acl =>
-      interpretAppliedComposedLens(c)(acl, AccessMode.Get).flatMap(t => getterExpression(t)).eval(None, args.toList)
-    }
+    val errorOrAst: Either[ParseError, AppliedLens] =
+      Parser.parseAppliedLens(Lexer(getContextStringParts(c)))
 
-    result match {
+    val finalTree =
+      for {
+        ast <- Parse.fromEither(errorOrAst)
+        tree <- interpretComposedLens(c)(ast.lens, AccessMode.Get, applied = true)
+        getter <- getterExpression(tree)
+      } yield getter
+
+    finalTree.eval(args.toList)._1 match {
       case Left(err) => c.abort(c.enclosingPosition, err.toString)
       case Right(tree) => tree
     }
@@ -45,35 +51,27 @@ object MonocleMacros {
     import c.universe._
     import AST._
 
-    val errorOrAst = Parser.parseAppliedLens(Lexer(getContextStringParts(c)))
-
     type Interpret[A] = Parse[Option[c.Type], c.Expr[Any], A]
 
     def setterExpression(tree: c.Tree): Interpret[c.Tree] = {
-      val finalTree = getOpticType(c)(tree).map {
+      val setterTree = getOpticType(c)(tree).map {
         case OpticType.SetterType => tree
         case _ => q"($tree).asSetter"
       }
-
-      finalTree match {
-        case Some(t) => Parse.result(t)
-        case None => Parse.raiseError(SetNotAllowed(tree.toString))
-      }
+      Parse.fromOption(setterTree, SetNotAllowed(show(tree)))
     }
 
-    val resultState: Interpret[c.Tree] =
-      for {
-        applied <- errorOrAst.fold[Interpret[AppliedLens]](
-                     e => Parse.raiseError(e),
-                     t => Parse.result(t))
-        tree <- interpretAppliedComposedLens(c)(applied, AccessMode.Set)
-        setter <- setterExpression(tree)
-      } yield {
-        println(setter)
-        q"(new _root_.goggles.macros.MonocleModifyOps($setter))"
-      }
+    val errorOrAst: Either[ParseError, AppliedLens] =
+      Parser.parseAppliedLens(Lexer(getContextStringParts(c)))
 
-    resultState.eval(None, args.toList) match {
+    val finalTree: Interpret[c.Tree] =
+      for {
+        ast <- Parse.fromEither(errorOrAst)
+        tree <- interpretComposedLens(c)(ast.lens, AccessMode.Set, applied = true)
+        setter <- setterExpression(tree)
+      } yield q"(new _root_.goggles.macros.MonocleModifyOps($setter))"
+
+    finalTree.eval(args.toList)._1 match {
       case Left(err) => c.abort(c.enclosingPosition, err.toString)
       case Right(tree) => tree
     }
@@ -82,31 +80,93 @@ object MonocleMacros {
   def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
     import c.universe._
 
-    val errorOrAst = Parser.parseComposedLens(Lexer(getContextStringParts(c)))
+    type Interpret[A] = Parse[Option[c.Type], c.Expr[Any], A]
 
-    val resultState = errorOrAst.flatMap(ast => 
-      interpretComposedLens(c)(ast, AccessMode.GetAndSet).eval(None, args.toList))
+    val errorOrAst: Either[ParseError, ComposedLens] =
+      Parser.parseComposedLens(Lexer(getContextStringParts(c)))
 
-    resultState match {
+    val finalTree: Interpret[c.Tree] =
+      for {
+        ast <- Parse.fromEither(errorOrAst)
+        tree <- interpretComposedLens(c)(ast, AccessMode.GetAndSet, applied = false)
+      } yield tree
+
+    finalTree.eval(args.toList)._1 match {
       case Left(err) => c.abort(c.enclosingPosition, err.toString)
       case Right(tree) => tree
     }
   }
 
+  private def interpretComposedLens(c: whitebox.Context)(composedLens: ComposedLens, mode: AccessMode, applied: Boolean): Parse[Option[c.Type], c.Expr[Any], c.Tree] = {
+    import c.universe._
+
+    type Interpret[A] = Parse[Option[c.Type], c.Expr[Any], A]
+
+    def composeAll(initCode: c.Tree, lensExprs: List[LensExpr]): Interpret[c.Tree] = {
+      def compose(codeSoFar: c.Tree, lensExpr: LensExpr): Interpret[c.Tree] = {
+        for {
+          nextLensCode <- interpretLensExpr(lensExpr)
+          maybeOpticType = getKnownOpticType(lensExpr, nextLensCode)
+          opticType <- Parse.fromOption(maybeOpticType, OpticTypecheckFailed(show(nextLensCode)))
+        } yield q"($codeSoFar).${TermName(opticType.composeVerb)}($nextLensCode)"
+      }
+      lensExprs.foldLeftM[Interpret, c.Tree](initCode)((accum, lx) => compose(accum, lx))
+    }
+
+    def interpretLensExpr(lexpr: LensExpr): Interpret[c.Tree] = {
+      def interpretIndex(i: c.Tree): Interpret[c.Tree] =
+        Parse.pure(q"_root_.monocle.function.Index.index($i)")
+
+      lexpr match {
+        case RefExpr(NamedLensRef(name)) =>
+          val termName = TermName(name)
+          Parse.pure(mode match {
+            case AccessMode.Get => q"_root_.monocle.Getter(_.$termName)"
+            case AccessMode.Set => q"_root_.monocle.Setter(f => s => s.copy($termName = f(s.$termName)))"
+            case AccessMode.GetAndSet => q"_root_.monocle.Lens(_.$termName)(a => s => s.copy($termName = a))"
+          })
+        case RefExpr(InterpLensRef) => Parse.popArg[Option[c.Type], c.Expr[Any]].map(_.tree)
+        case EachExpr => Parse.pure(q"_root_.monocle.function.Each.each")
+        case OptExpr => Parse.pure(q"_root_.monocle.function.Possible.possible")
+        case IndexedExpr(LiteralIndex(i)) => interpretIndex(q"$i")
+        case IndexedExpr(InterpIndex) => Parse.popArg.flatMap(i => interpretIndex(i.tree))
+      }
+    }
+
+    def getKnownOpticType(lexpr: LensExpr, code: => c.Tree): Option[OpticType] = lexpr match {
+      case RefExpr(NamedLensRef(_)) => Some(mode.opticType)
+      case RefExpr(InterpLensRef) => getOpticType(c)(code)
+      case EachExpr => Some(TraversalType)
+      case OptExpr => Some(OptionalType)
+      case IndexedExpr(_) => Some(OptionalType)
+    }
+
+    def interpretSource: Interpret[c.Tree] =
+      Parse.popArg.map(arg =>
+        q"_root_.goggles.macros.MonocleMacros.const($arg)")
+
+    val (initCode, lensExprs) =
+      if (applied) (interpretSource, composedLens.toList)
+      else (interpretLensExpr(composedLens.head), composedLens.tail)
+
+    initCode.flatMap(composeAll(_, lensExprs))
+  }
+
+  def const[A,B](a: => A) = PIso[Unit, B, A ,B](_ => a)(identity)
 
   private def getOpticType(c: whitebox.Context)(tree: c.Tree): Option[OpticType] = {
     import c.universe._
 
-    c.typecheck(tree)
+    //c.typecheck(tree)
 
     OpticType.all.find { o =>
       val t = if (o.polymorphic) tq"_root_.monocle.${TypeName(o.typeName)}[_,_,_,_]"
-              else tq"_root_.monocle.${TypeName(o.typeName)}[_,_]"
+      else tq"_root_.monocle.${TypeName(o.typeName)}[_,_]"
 
       c.typecheck(q"($tree): $t", silent = true).nonEmpty
     }
   }
-
+/*
   private def interpretSource(c: whitebox.Context): Parse[Option[c.Type], c.Expr[Any], c.Expr[Any]] = {
     import c.universe._
 
@@ -116,7 +176,6 @@ object MonocleMacros {
     } yield c.Expr(q"_root_.goggles.macros.MonocleMacros.const($arg)")
   }
 
-  def const[A,B](a: => A) = PIso[Unit, B, A ,B](_ => a)(identity)
 
 
   private def composeLensTrees(c: whitebox.Context)(exprs: NonEmptyList[c.Expr[Any]]): c.Tree = {
@@ -146,6 +205,7 @@ object MonocleMacros {
       lensTrees <- treeState
     } yield composeLensTrees(c)(NonEmptyList(sourceTree, lensTrees: _*))
   }
+
 
   private def interpretComposedLens(c: whitebox.Context)(clens: ComposedLens, mode: AccessMode): Parse[Option[c.Type], c.Expr[Any], c.Tree] = {
     import c.universe._
@@ -296,6 +356,7 @@ object MonocleMacros {
       case IndexedExpr(InterpIndex) => Parse.popArg.flatMap(i => interpretIndex(i))
     }
   }
+  */
 
   private def getContextStringParts(implicit c: whitebox.Context): List[String] = {
     import c.universe._

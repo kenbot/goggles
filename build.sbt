@@ -23,7 +23,7 @@ val specs2Deps = Seq(
   "org.specs2" %% "specs2-scalacheck" % scalacheckVersion % "test"
 )
 
-val monocleVersion = "1.4.0-M1"
+val monocleVersion = "1.4.0-M2"
 val monocleDeps = Seq(
   "com.github.julien-truffaut"  %%  "monocle-core"    % monocleVersion,
   "com.github.julien-truffaut"  %%  "monocle-generic" % monocleVersion,

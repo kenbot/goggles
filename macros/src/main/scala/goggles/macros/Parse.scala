@@ -2,64 +2,64 @@ package goggles.macros
 
 import scalaz._, Scalaz._
 
-trait Parse[S, Arg, A] {
+case class ParseInfo[T](label: String, inType: T, outType: T, opticType: OpticType)
+case class ParseState[T,Arg](args: List[Arg], infos: List[ParseInfo[T]])
+
+trait Parse[T, Arg, A] {
   self =>
 
-  case class ParseState(state: S, args: List[Arg])
+  def apply(state: ParseState[T,Arg]): (Either[ParseError,A], ParseState[T,Arg])
 
-  def apply(state: S, args: List[Arg]): (Either[ParseError,A], S, List[Arg])
-
-  final def map[B](f: A => B): Parse[S,Arg,B] = { 
-    case (s,args) =>
-      val r = self(s,args)
-      (r._1.map(f), r._2, r._3)
+  final def map[B](f: A => B): Parse[T,Arg,B] = { args =>
+    val (errorOrA, state) = self(args)
+    (errorOrA.map(f), state)
   }
 
-  final def flatMap[B](f: A => Parse[S,Arg,B]): Parse[S,Arg,B] = { case (s0,args0) =>
-    self(s0,args0) match {
-      case (Right(a), s, args) => f(a)(s,args)
-      case (Left(err), s, args) => (Left(err), s, args)
+  final def flatMap[B](f: A => Parse[T,Arg,B]): Parse[T,Arg,B] = { args0 =>
+    self(args0) match {
+      case (Right(a), state) => f(a)(state)
+      case (Left(err), state) => (Left(err), state)
     }
   }
 
-  final def eval(state: S, args: List[Arg]): Either[ParseError,A] =  
-    apply(state, args)._1
+  final def eval(args: List[Arg]): (Either[ParseError,A], List[ParseInfo[T]]) = {
+    val (errorOrA, ParseState(_, infos)) = apply(ParseState(args, Nil))
+    (errorOrA, infos)
+  }
 }
 
 object Parse {
-  def result[S,Arg,A](a: => A): Parse[S,Arg,A] = {
-    case (s,args) => (Right(a), s, args)
+  def pure[T,Arg,A](a: => A): Parse[T,Arg,A] = (Right(a), _)
+
+  def fromOption[T, Arg, A](opt: Option[A], orElse: => ParseError): Parse[T, Arg, A] = opt match {
+    case Some(a) => pure(a)
+    case None => raiseError(orElse)
   }
 
-  def raiseError[S,Arg,A](e: ParseError): Parse[S,Arg,A] = {
-    case (s,args) => (Left(e), s, args)
+  def fromEither[T, Arg, A](either: Either[ParseError,A]): Parse[T,Arg,A] =
+    (either, _)
+
+  def raiseError[T, Arg, A](e: ParseError): Parse[T, Arg, A] =
+    (Left(e), _)
+
+  def getLastParseInfo[T,Arg]: Parse[T, Arg, Option[ParseInfo[T]]] = {
+    case state @ ParseState(args, infos) => (Right(infos.headOption), state)
   }
 
-  def getState[S,Arg]: Parse[S,Arg,S] = {
-    case (s,args) => (Right(s), s, args)
+  def writeParseInfo[T,Arg](info: ParseInfo[T]): Parse[T, Arg, Unit] = {
+    case ParseState(args, infos) => (Right(()), ParseState(args, info :: infos))
   }
 
-  def setState[S,Arg](newS: S): Parse[S,Arg,Unit] = {
-    case (_,args) => (Right(()), newS, args)
-  }
-
-  def popArg[S,Arg]: Parse[S,Arg,Arg] = {
-    case (s, arg :: rest) => (Right(arg), s, rest)
-    case (s, Nil) => (Left(argumentsExhausted), s, Nil)
-  }
-
-  def useArg[S,Arg,A](f: Arg => A): Parse[S,Arg,A] =
-    popArg.map(f)
-
-  def getArguments[S,Arg]: Parse[S,Arg,List[Arg]] = {
-    case (s,args) => (Right(args), s, args)
+  def popArg[T, Arg]: Parse[T, Arg, Arg] = {
+    case state @ ParseState(arg :: rest, _) => (Right(arg), state)
+    case state @ ParseState(Nil, _) => (Left(argumentsExhausted), state)
   }
 
   private def argumentsExhausted =
     InternalError("Internal error: ran out of arguments.")
 
-  implicit def monad[S,Arg] = new Monad[({type f[a]=Parse[S,Arg,a]})#f] {
-    override def bind[A, B](fa: Parse[S,Arg,A])(f: A => Parse[S,Arg,B]): Parse[S,Arg,B] = fa.flatMap(f)
-    override def point[A](a: => A): Parse[S,Arg,A] = result(a)
+  implicit def monad[T,Arg] = new Monad[({type f[a]=Parse[T,Arg,a]})#f] {
+    override def bind[A, B](fa: Parse[T,Arg,A])(f: A => Parse[T,Arg,B]): Parse[T,Arg,B] = fa.flatMap(f)
+    override def point[A](a: => A): Parse[T,Arg,A] = pure(a)
   }
 }
