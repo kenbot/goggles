@@ -118,7 +118,7 @@ class SetDslSpec extends Specification with ScalaCheck { def is =
     (set"${List(Some(1), None, Some(3))}*?" += 1) === List(Some(2), None, Some(4))
 
   def starQFailed =
-    (set"$Nil*?" += 1) === Nil
+    (set"${List.empty[Option[Int]]}*?" += 1) === Nil
 
   def starIndex =
     (set"${List(List(1,2,3),
@@ -138,7 +138,7 @@ class SetDslSpec extends Specification with ScalaCheck { def is =
     (set"${Option(44)}?" += 1) === Some(45)
 
   def qFailed =
-    (set"${Option.empty}?" += 1) === None
+    (set"${Option.empty[Int]}?" += 1) === None
 
   def qField =
     (set"${Option(Item(9))}?.qty" += 1) === Some(Item(10))
@@ -156,7 +156,7 @@ class SetDslSpec extends Specification with ScalaCheck { def is =
     (set"${Option(List(1,2,3))}?[1]" += 1) === Some(List(1,3,3))
 
   def qIndexFailed =
-    (set"${Option(Nil)}?[1]" += 1) === Some(Nil)
+    (set"${Option(List.empty[Int])}?[1]" += 1) === Some(Nil)
 
   def index =
     (set"${List(1,2,3)}[2]" += 1) === List(1,2,4)

@@ -30,7 +30,6 @@ object Parser {
     }
 
     loop(tokens, Nil)
-
   }
 
   def parseLensExpr(tokens: List[Token]): (List[Token], Either[ParseError, LensExpr]) = {

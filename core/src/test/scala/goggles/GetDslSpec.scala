@@ -130,7 +130,7 @@ class GetDslSpec extends Specification with ScalaCheck { def is =
     get"${Option(44)}?" === Some(44)
 
   def qFailed =
-    get"${Option.empty}?" === None
+    get"${Option.empty[Int]}?" === None
 
   def qField =
     get"${Option(Item(123))}?.qty" === Some(123)
@@ -145,13 +145,13 @@ class GetDslSpec extends Specification with ScalaCheck { def is =
     get"${Option(Option(44))}??" === Some(44)
 
   def qqFailed =
-    get"$None??" === Some(44)
+    get"${Option.empty[Option[Int]]}??" === None
 
   def qIndex =
     get"${Option(List(1,2,3))}?[0]" === Some(1)
 
   def qIndexFailed =
-    get"${Option(Nil)}?[0]" === None
+    get"${Option(List.empty[Int])}?[0]" === None
 
   def index =
     get"$myItemList[1]" === Some(Item(22))

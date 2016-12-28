@@ -49,12 +49,16 @@ initialCommands in core := """
   case class User(name: String);
   case class ShoppingBasket(user: User, items: List[Item], discount: Option[Int]);
 
-  val myItemList = List(Item(11), Item(22), Item(33));
-  val myBasket = ShoppingBasket(User("Wally"), myItemList, Some(44));
+  object DefaultInstances {
+    val myItemList = List(Item(11), Item(22), Item(33));
+    val myBasket = ShoppingBasket(User("Wally"), myItemList, Some(44));
 
-  val itemQty = monocle.macros.GenLens[Item](_.qty);
-  val userName = monocle.macros.GenLens[User](_.name);
-  val basketUser = monocle.macros.GenLens[ShoppingBasket](_.user);
-  val basketItems = monocle.macros.GenLens[ShoppingBasket](_.items);
-  val basketDiscount = monocle.macros.GenLens[ShoppingBasket](_.discount);
+    val itemQty = monocle.macros.GenLens[Item](_.qty);
+    val userName = monocle.macros.GenLens[User](_.name);
+    val basketUser = monocle.macros.GenLens[ShoppingBasket](_.user);
+    val basketItems = monocle.macros.GenLens[ShoppingBasket](_.items);
+    val basketDiscount = monocle.macros.GenLens[ShoppingBasket](_.discount);
+    val evenPrism = Prism[Int,Int](i => if (i % 2 == 0) Some(i) else None)(identity);
+  }
+  import DefaultInstances._;
 """

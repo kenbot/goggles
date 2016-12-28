@@ -6,13 +6,12 @@ import Fixture._
 
 object Generators {
 
-  case class Index(i: Int)
 
-  val genItem: Gen[Item] =
-    arbitrary[Int].map(Item.apply)
+  val genItem: Gen[Item] = arbitrary[Int].map(Item.apply)
+  implicit def arbItem = Arbitrary(genItem)
 
-  val genUser: Gen[User] =
-    arbitrary[String].map(User.apply)
+  val genUser: Gen[User] = arbitrary[String].map(User.apply)
+  implicit def arbUser = Arbitrary(genUser)
 
   val genBasket: Gen[ShoppingBasket] =
     for {
@@ -21,11 +20,9 @@ object Generators {
       discount <- arbitrary[Option[Int]]
     } yield ShoppingBasket(user, items, discount)
 
-  val genIndex: Gen[Index] =
-    Gen.choose(-1, 4).map(Index.apply)
-
-  implicit def arbItem = Arbitrary(genItem)
-  implicit def arbUser = Arbitrary(genUser)
   implicit def arbBasket = Arbitrary(genBasket)
+
+  case class Index(i: Int)
+  val genIndex: Gen[Index] = Gen.choose(-1, 4).map(Index.apply)
   implicit def arbIndex = Arbitrary(genIndex)
 }
