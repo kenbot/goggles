@@ -18,8 +18,8 @@ object MonocleMacros {
 
     def getterExpression(tree: c.Tree): Interpret[c.Tree] = {
       for {
-        info <- Parse.getLastParseInfo[c.Type, c.Expr[Any]](GetNotAllowed(show(tree)))
-        verb <- Parse.fromOption(info.compositeOpticType.getVerb, GetNotAllowed(show(tree)))
+        info <- Parse.getLastParseInfo[c.Type, c.Expr[Any]]
+        verb <- Parse.fromOption(info.flatMap(_.compositeOpticType.getVerb), GetNotAllowed(show(tree)))
       } yield q"($tree).${TermName(verb)}(())"
     }
 
@@ -34,7 +34,7 @@ object MonocleMacros {
       } yield getter
 
     val (errorOrTree, infos) = finalTree.eval(args.toList)
-    infos.map(_.pretty).foreach(println)
+
     errorOrTree match {
       case Left(err) => c.abort(c.enclosingPosition, err.toString)
       case Right(tree) => tree
@@ -49,7 +49,8 @@ object MonocleMacros {
 
     def setterExpression(tree: c.Tree): Interpret[c.Tree] = {
       for {
-        info <- Parse.getLastParseInfo[c.Type, c.Expr[Any]](SetNotAllowed(show(tree)))
+        infoOpt <- Parse.getLastParseInfo[c.Type, c.Expr[Any]]
+        info <- Parse.fromOption(infoOpt, InvalidSetter(show(tree)))
       } yield info.compositeOpticType match {
         case OpticType.SetterType => tree
         case x => q"($tree).asSetter"
@@ -67,7 +68,6 @@ object MonocleMacros {
       } yield q"(new _root_.goggles.macros.MonocleModifyOps($setter))"
 
     val (errorOrTree, infos) = finalTree.eval(args.toList)
-    infos.map(_.pretty).foreach(println)
     errorOrTree match {
       case Left(err) => c.abort(c.enclosingPosition, err.toString)
       case Right(tree) => tree
@@ -80,7 +80,7 @@ object MonocleMacros {
     type Interpret[A] = Parse[c.Type, c.Expr[Any], A]
 
     val errorOrAst: Either[ParseError, ComposedLens] =
-      Parser.parseComposedLens(Lexer(getContextStringParts(c)))
+      Parser.parseUnappliedLens(Lexer(getContextStringParts(c)))
 
     val finalTree: Interpret[c.Tree] =
       for {
@@ -89,7 +89,6 @@ object MonocleMacros {
       } yield tree
 
     val (errorOrTree, infos) = finalTree.eval(args.toList)
-    infos.map(_.pretty).foreach(println)
     errorOrTree match {
       case Left(err) => c.abort(c.enclosingPosition, err.toString)
       case Right(tree) => tree
@@ -135,9 +134,7 @@ object MonocleMacros {
         else Parse.raiseError(orElse)
 
       def getLastOutputType(name: String): Interpret[c.Type] =
-        for {
-          info <- Parse.getLastParseInfo[c.Type, c.Expr[Any]](MissingInputType(name))
-        } yield info.outType
+        getLastParseInfo(name).map(_.outType)
 
       def getInputOutputTypes(actualType: c.Type, opticType: OpticType): Interpret[(c.Type, c.Type)] = {
         val typeArgs = actualType.typeArgs
@@ -207,19 +204,18 @@ object MonocleMacros {
           getter <- checkOrElse(inputType.member(TermName(name)), InvalidGetter(name))(isGetter(name))
           outputType = getter.info
           _ <- storeParseInfo(s".$name", inputType, outputType, LensType)
-        } yield q"_root_.monocle.Lens(_.${TermName(name)})(a => (s: $inputType) => s.copy(${TermName(name)} = a))"
+        } yield q"_root_.monocle.Lens((s: $inputType) => s.${TermName(name)})(a => (s: $inputType) => s.copy(${TermName(name)} = a))"
       }
 
-      def interpretInterpolatedLens: Interpret[c.Tree] =
+      def interpretInterpolatedLens: Interpret[c.Tree] = {
         for {
           arg <- Parse.popArg[c.Type, c.Expr[Any]]
           opticType <- getOpticTypeFromArg(arg.actualType)
           io <- getInputOutputTypes(arg.actualType, opticType)
           (inType, outType) = io
-          _ <- storeParseInfo(s"$$${show(arg.tree)}", inType, outType, opticType)
+          _ <- storeParseInfo(s"$${${show(arg.tree)}}", inType, outType, opticType)
         } yield arg.tree
-
-
+      }
 
       def interpretEach: Interpret[c.Tree] = {
         object ImplicitEachTargetType {
@@ -297,11 +293,12 @@ object MonocleMacros {
       }
 
       lexpr match {
-        case RefExpr(NamedLensRef(name)) => mode match {
+        case RefExpr(NamedLensRef(name)) => interpretNamedRefGetterSetter(name)
+        /*mode match {
           case AccessMode.Get => interpretNamedRefGetter(name)
           case AccessMode.Set => interpretNamedRefSetter(name)
           case AccessMode.GetAndSet => interpretNamedRefGetterSetter(name)
-        }
+        } */
         case RefExpr(InterpLensRef) => interpretInterpolatedLens
         case EachExpr => interpretEach
         case OptExpr => interpretPossible
@@ -311,14 +308,21 @@ object MonocleMacros {
     }
 
     def getLastParseInfo(name: String): Interpret[ParseInfo[c.Type]] = {
-      Parse.getLastParseInfo[c.Type, c.Expr[Any]](MissingInputType(name))
+      Parse.getLastParseInfo[c.Type, c.Expr[Any]].flatMap {
+        case Some(info) => Parse.pure(info)
+        case None => Parse.raiseError(MissingInputType(name))
+      }
     }
 
     def storeParseInfo(name: String, inType: c.Type, outType: c.Type, opticType: OpticType): Interpret[Unit] = {
       for {
-        lastInfo <- getLastParseInfo(name)
-        composed <- Parse.fromOption(lastInfo.compositeOpticType.compose(opticType),
-                                     InvalidOpticComposition(lastInfo.compositeOpticType, opticType))
+        lastInfo <- Parse.getLastParseInfo[c.Type, c.Expr[Any]]
+        nextOpticType = lastInfo match {
+          case Some(info) => info.compositeOpticType.compose(opticType)
+          case None => Some(opticType)
+        }
+        composed <- Parse.fromOption(nextOpticType,
+                                     InvalidOpticComposition(lastInfo.fold(opticType)(_.compositeOpticType), opticType))
         _ <- Parse.storeParseInfo(ParseInfo(name, inType, outType, opticType, composed))
       } yield ()
     }

@@ -16,7 +16,15 @@ object Parser {
     }
   }
 
-  def parseComposedLens(tokens: List[Token]): Either[ParseError, ComposedLens] = {
+  def parseUnappliedLens(tokens: List[Token]): Either[ParseError, ComposedLens] = {
+    tokens match {
+      case Nil => Left(EndOfExpr)
+      case Hole :: rest => parseComposedLens(Dot :: Hole :: rest)
+      case x :: _ => Left(ParseTargetFailed(x))
+    }
+  }
+
+  private def parseComposedLens(tokens: List[Token]): Either[ParseError, ComposedLens] = {
 
     def loop(remaining: List[Token], exprs: List[LensExpr]): Either[ParseError, ComposedLens] = {
       parseLensExpr(remaining) match {

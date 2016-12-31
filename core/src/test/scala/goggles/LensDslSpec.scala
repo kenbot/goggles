@@ -5,6 +5,7 @@ import monocle.macros.GenLens
 import org.specs2._
 
 import monocle.function.Each._
+import monocle.function.Possible._
 import monocle.function.Index._
 
 class LensDslSpec extends Specification with ScalaCheck { def is =
@@ -108,15 +109,15 @@ class LensDslSpec extends Specification with ScalaCheck { def is =
   }
 
   def lensQ = prop { (b: ShoppingBasket) =>
-    lens"$basketDiscount?".getOption(b) === basketDiscount.composePrism(each).getOption(b)
+    lens"$basketDiscount?".getOption(b) === basketDiscount.composeOptional(possible).getOption(b)
   }
 
   def lensIndex = prop { (b: ShoppingBasket) =>
-    lens"$basketItems[0]".getOption(b) === basketItems.composePrism(index(0)).getOption(b)
+    lens"$basketItems[0]".getOption(b) === basketItems.composeOptional(index(0)).getOption(b)
   }
 
   def lensInterpIndex = prop { (ix: Index, b: ShoppingBasket) =>
     val n = ix.i
-    lens"$basketItems[$n]".getOption(b) === basketItems.composePrism(index(n)).getOption(b)
+    lens"$basketItems[$n]".getOption(b) === basketItems.composeOptional(index(n)).getOption(b)
   }
 }

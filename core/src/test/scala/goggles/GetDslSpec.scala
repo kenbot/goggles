@@ -118,13 +118,13 @@ class GetDslSpec extends Specification with ScalaCheck { def is =
 
   def starIndex =
     get"${List(List(1,2,3),
-      List(4,5,6),
-      List(7,8,9))}*[2]" === List(7,8,9)
+               List(4,5,6),
+               List(7,8,9))}*[2]" === List(3,6,9)
 
   def starIndexFailed =
     get"${List(List(1,2,3),
-      List(4,5,6),
-      List(7,8,9))}*[3]" === Nil
+               List(4,5,6),
+               List(7,8,9))}*[3]" === Nil
 
   def q =
     get"${Option(44)}?" === Some(44)
@@ -161,7 +161,7 @@ class GetDslSpec extends Specification with ScalaCheck { def is =
 
   def interpIndex = {
     val n = 1
-    get"$myItemList[$n]" === Item(22)
+    get"$myItemList[$n]" === Some(Item(22))
   }
 
   def indexField =

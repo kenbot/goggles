@@ -55,13 +55,8 @@ object Parse {
   def raiseError[T, Arg, A](e: ParseError): Parse[T, Arg, A] =
     (Left(e), _)
 
-  def getLastParseInfo[T,Arg](orElse: => ParseError): Parse[T, Arg, ParseInfo[T]] = {
-    case state @ ParseState(_, infos) =>
-      val result = infos.headOption match {
-        case Some(info) => Right(info)
-        case None => Left(orElse)
-      }
-      (result, state)
+  def getLastParseInfo[T,Arg]: Parse[T, Arg, Option[ParseInfo[T]]] = {
+    case state @ ParseState(_, infos) => (Right(infos.headOption), state)
   }
 
   def storeParseInfo[T,Arg](info: ParseInfo[T]): Parse[T, Arg, Unit] = {

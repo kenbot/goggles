@@ -60,13 +60,15 @@ class SetDslSpec extends Specification with ScalaCheck { def is =
     (set"$myBasket.user.$userName" ~= ("Mrs " + _)) === myBasket.copy(user = User("Mrs Wally"))
 
   def fieldStar =
-    (set"$myBasket.items*" ~= (it => Item(it.qty * 2))) === List(Item(22),Item(44),Item(66))
+    (set"$myBasket.items*" ~= (it => Item(it.qty * 2))) === myBasket.copy(items = List(Item(22),Item(44),Item(66)))
 
   def fieldQ =
     (set"$myBasket.discount?" += 1) === myBasket.copy(discount = Some(45))
 
-  def fieldQFailed =
-    (set"${myBasket.copy(discount=None)}.discount?" += 1) === None
+  def fieldQFailed = {
+    val myBasket2 = myBasket.copy(discount = None)
+    (set"$myBasket2.discount?" += 1) === myBasket2
+  }
 
   def fieldIndex =
     (set"$myBasket.items[0]" ~= (i => Item(i.qty + 1))) === myBasket.copy(items = Item(12) :: myItemList.tail)
@@ -84,13 +86,15 @@ class SetDslSpec extends Specification with ScalaCheck { def is =
     (set"$myBasket.$basketUser.$userName" ~= ("Mrs " + _)) === myBasket.copy(user = User("Mrs Wally"))
 
   def lensStar =
-    (set"$myBasket.$basketItems*" ~= (it => Item(it.qty * 2))) === List(Item(22),Item(44),Item(66))
+    (set"$myBasket.$basketItems*" ~= (it => Item(it.qty * 2))) === myBasket.copy(items = List(Item(22),Item(44),Item(66)))
 
   def lensQ =
     (set"$myBasket.$basketDiscount?" += 1) === myBasket.copy(discount = Some(45))
 
-  def lensQFailed =
-    (set"${myBasket.copy(discount=None)}.$basketDiscount?" += 1) === None
+  def lensQFailed = {
+    val myBasket2 = myBasket.copy(discount = None)
+    (set"$myBasket2.$basketDiscount?" += 1) === myBasket2
+  }
 
   def lensIndex =
     (set"$myBasket.$basketItems[0]" ~= (i => Item(i.qty + 1))) === myBasket.copy(items = Item(12) :: myItemList.tail)
@@ -99,20 +103,21 @@ class SetDslSpec extends Specification with ScalaCheck { def is =
     (set"$myBasket.$basketItems[11]" ~= (i => Item(i.qty + 1))) === myBasket
 
   def star =
-    (set"${(1,2,3)}*" ~= (_ + 1)) === List(2,3,4)
+    (set"${(1,2,3)}*" ~= (_ + 1)) === (2,3,4)
 
   def starField =
-    (set"$myItemList*.qty" += 1) === List(12,23,34)
+    (set"$myItemList*.qty" += 1) === List(Item(12),Item(23),Item(34)
+    )
 
   def starLens =
-    (set"$myItemList*.$itemQty" += 1) === List(12,23,34)
+    (set"$myItemList*.$itemQty" += 1) === List(Item(12),Item(23),Item(34))
 
   def starStar =
     (set"${List(List(1,2,3),
                 List(4,5,6),
                 List(7,8,9))}**" += 1) === List(List(2,3,4),
                                                 List(5,6,7),
-                                                List(7,8,9))
+                                                List(8,9,10))
 
   def starQ =
     (set"${List(Some(1), None, Some(3))}*?" += 1) === List(Some(2), None, Some(4))
