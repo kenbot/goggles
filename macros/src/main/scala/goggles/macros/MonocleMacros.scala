@@ -29,7 +29,7 @@ object MonocleMacros {
     val finalTree =
       for {
         ast <- Parse.fromEither(errorOrAst)
-        tree <- interpretComposedLens(c)(ast.lens, AccessMode.Get, applied = true)
+        tree <- interpretComposedLens(c)(ast.lens, applied = true)
         getter <- getterExpression(tree)
       } yield getter
 
@@ -63,7 +63,7 @@ object MonocleMacros {
     val finalTree: Interpret[c.Tree] =
       for {
         ast <- Parse.fromEither(errorOrAst)
-        tree <- interpretComposedLens(c)(ast.lens, AccessMode.Set, applied = true)
+        tree <- interpretComposedLens(c)(ast.lens, applied = true)
         setter <- setterExpression(tree)
       } yield q"(new _root_.goggles.macros.MonocleModifyOps($setter))"
 
@@ -85,7 +85,7 @@ object MonocleMacros {
     val finalTree: Interpret[c.Tree] =
       for {
         ast <- Parse.fromEither(errorOrAst)
-        tree <- interpretComposedLens(c)(ast, AccessMode.GetAndSet, applied = false)
+        tree <- interpretComposedLens(c)(ast, applied = false)
       } yield tree
 
     val (errorOrTree, infos) = finalTree.eval(args.toList)
@@ -95,7 +95,7 @@ object MonocleMacros {
     }
   }
 
-  private def interpretComposedLens(c: whitebox.Context)(composedLens: ComposedLens, mode: AccessMode, applied: Boolean): Parse[c.Type, c.Expr[Any], c.Tree] = {
+  private def interpretComposedLens(c: whitebox.Context)(composedLens: ComposedLens, applied: Boolean): Parse[c.Type, c.Expr[Any], c.Tree] = {
     import c.universe._
 
     type Interpret[A] = Parse[c.Type, c.Expr[Any], A]
@@ -163,6 +163,7 @@ object MonocleMacros {
           sym.asMethod.paramLists.flatten == Nil
       }
 
+      /*
       def interpretNamedRefGetter(name: String): Interpret[c.Tree] = {
         for {
           inputType <- getLastOutputType(name)
@@ -197,6 +198,7 @@ object MonocleMacros {
           q"_root_.monocle.Setter[$inputType, $outputType](f => s => s.copy(${TermName(name)} = f(s.${TermName(name)})))"
         }
       }
+      */
 
       def interpretNamedRefGetterSetter(name: String): Interpret[c.Tree] = {
         for {
@@ -294,11 +296,6 @@ object MonocleMacros {
 
       lexpr match {
         case RefExpr(NamedLensRef(name)) => interpretNamedRefGetterSetter(name)
-        /*mode match {
-          case AccessMode.Get => interpretNamedRefGetter(name)
-          case AccessMode.Set => interpretNamedRefSetter(name)
-          case AccessMode.GetAndSet => interpretNamedRefGetterSetter(name)
-        } */
         case RefExpr(InterpLensRef) => interpretInterpolatedLens
         case EachExpr => interpretEach
         case OptExpr => interpretPossible
