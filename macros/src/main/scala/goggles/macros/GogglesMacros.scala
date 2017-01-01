@@ -6,7 +6,7 @@ import scala.reflect.macros.whitebox
 import monocle._
 
 
-object MonocleMacros {
+object GogglesMacros {
 
   import AST._
 
@@ -328,7 +328,7 @@ object MonocleMacros {
       for {
         arg <- Parse.popArg[c.Type, c.Expr[Any]]
         _ <- Parse.storeParseInfo(ParseInfo(s"$$arg", typeOf[Unit], arg.actualType, IsoType, IsoType))
-      } yield q"_root_.goggles.macros.MonocleMacros.const($arg)"
+      } yield q"_root_.goggles.macros.GogglesMacros.const($arg)"
     }
 
     val (initCode, lensExprs) =
