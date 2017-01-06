@@ -21,7 +21,7 @@ case class ParseState[T,Arg](args: List[Arg], infos: List[ParseInfo[T]])
 trait Parse[T, Arg, A] {
   self =>
 
-  def apply(state: ParseState[T,Arg]): (Either[ParseError,A], ParseState[T,Arg])
+  def apply(state: ParseState[T,Arg]): (Either[GogglesError,A], ParseState[T,Arg])
 
   final def map[B](f: A => B): Parse[T,Arg,B] = { args =>
     val (errorOrA, state) = self(args)
@@ -35,7 +35,7 @@ trait Parse[T, Arg, A] {
     }
   }
 
-  final def eval(args: List[Arg]): (Either[ParseError,A], List[ParseInfo[T]]) = {
+  final def eval(args: List[Arg]): (Either[GogglesError,A], List[ParseInfo[T]]) = {
     val (errorOrA, ParseState(_, infos)) = apply(ParseState(args, Nil))
     (errorOrA, infos.reverse)
   }
@@ -44,19 +44,24 @@ trait Parse[T, Arg, A] {
 object Parse {
   def pure[T,Arg,A](a: => A): Parse[T,Arg,A] = (Right(a), _)
 
-  def fromOption[T, Arg, A](opt: Option[A], orElse: => ParseError): Parse[T, Arg, A] = opt match {
+  def fromOption[T, Arg, A](opt: Option[A], orElse: => GogglesError): Parse[T, Arg, A] = opt match {
     case Some(a) => pure(a)
     case None => raiseError(orElse)
   }
 
-  def fromEither[T, Arg, A](either: Either[ParseError,A]): Parse[T,Arg,A] =
+  def fromEither[T, Arg, A](either: Either[GogglesError,A]): Parse[T,Arg,A] =
     (either, _)
 
-  def raiseError[T, Arg, A](e: ParseError): Parse[T, Arg, A] =
+  def raiseError[T, Arg, A](e: GogglesError): Parse[T, Arg, A] =
     (Left(e), _)
 
   def getLastParseInfo[T,Arg]: Parse[T, Arg, Option[ParseInfo[T]]] = {
     case state @ ParseState(_, infos) => (Right(infos.headOption), state)
+  }
+
+  def getLastParseInfoOrElse[T,Arg](orElse: => GogglesError): Parse[T, Arg, ParseInfo[T]] = {
+    case state @ ParseState(_, info :: _) => (Right(info), state)
+    case state @ ParseState(_, Nil) => (Left(orElse), state)
   }
 
   def storeParseInfo[T,Arg](info: ParseInfo[T]): Parse[T, Arg, Unit] = {
@@ -65,11 +70,8 @@ object Parse {
 
   def popArg[T, Arg]: Parse[T, Arg, Arg] = {
     case state @ ParseState(arg :: rest, infos) => (Right(arg), ParseState(rest, infos))
-    case state @ ParseState(Nil, _) => (Left(argumentsExhausted), state)
+    case state @ ParseState(Nil, _) => (Left(NotEnoughArguments), state)
   }
-
-  private def argumentsExhausted =
-    InternalError("Internal error: ran out of arguments.")
 
   implicit def monad[T,Arg] = new Monad[({type f[a]=Parse[T,Arg,a]})#f] {
     override def bind[A, B](fa: Parse[T,Arg,A])(f: A => Parse[T,Arg,B]): Parse[T,Arg,B] = fa.flatMap(f)

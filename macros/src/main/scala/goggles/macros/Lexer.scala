@@ -7,7 +7,7 @@ object Lexer {
   def apply(fragments: List[String]): List[Token] = {
     fragments match {
       case Nil => Nil
-      case s :: ss => lex(s) ::: ss.flatMap(s => Hole :: lex(s)) 
+      case s :: ss => lex(s) ::: ss.flatMap(s => Hole :: lex(s))
     }
   }
 
@@ -30,7 +30,7 @@ object Lexer {
         case '?' :: tail => loop(Nil, tail, Question :: mkName(nameSoFar) ::: tokens) 
         case '[' :: tail => loop(Nil, tail, OpenBracket :: mkName(nameSoFar) ::: tokens) 
         case ']' :: tail => loop(Nil, tail, CloseBracket :: mkName(nameSoFar) ::: tokens) 
-        case x => Unrecognised(x.toString) :: tokens
+        case x  :: tail => Unrecognised(x) :: tokens
       }
     }
 

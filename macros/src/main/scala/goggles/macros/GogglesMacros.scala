@@ -18,12 +18,12 @@ object GogglesMacros {
 
     def getterExpression(tree: c.Tree): Interpret[c.Tree] = {
       for {
-        info <- Parse.getLastParseInfo[c.Type, c.Expr[Any]]
-        verb <- Parse.fromOption(info.flatMap(_.compositeOpticType.getVerb), GetNotAllowed(show(tree)))
+        info <- Parse.getLastParseInfoOrElse[c.Type, c.Expr[Any]](ParseInfoNotFound)
+        verb <- Parse.fromOption(info.compositeOpticType.getVerb, GetVerbNotFound(info.compositeOpticType))
       } yield q"($tree).${TermName(verb)}(())"
     }
 
-    val errorOrAst: Either[ParseError, AppliedLens] =
+    val errorOrAst: Either[GogglesError, AppliedLens] =
       Parser.parseAppliedLens(Lexer(getContextStringParts(c)))
 
     val finalTree =
@@ -49,15 +49,14 @@ object GogglesMacros {
 
     def setterExpression(tree: c.Tree): Interpret[c.Tree] = {
       for {
-        infoOpt <- Parse.getLastParseInfo[c.Type, c.Expr[Any]]
-        info <- Parse.fromOption(infoOpt, InvalidSetter(show(tree)))
+        info <- Parse.getLastParseInfoOrElse[c.Type, c.Expr[Any]](ParseInfoNotFound)
       } yield info.compositeOpticType match {
         case OpticType.SetterType => tree
         case x => q"($tree).asSetter"
       }
     }
 
-    val errorOrAst: Either[ParseError, AppliedLens] =
+    val errorOrAst: Either[GogglesError, AppliedLens] =
       Parser.parseAppliedLens(Lexer(getContextStringParts(c)))
 
     val finalTree: Interpret[c.Tree] =
@@ -79,7 +78,7 @@ object GogglesMacros {
 
     type Interpret[A] = Parse[c.Type, c.Expr[Any], A]
 
-    val errorOrAst: Either[ParseError, ComposedLens] =
+    val errorOrAst: Either[GogglesError, ComposedLens] =
       Parser.parseUnappliedLens(Lexer(getContextStringParts(c)))
 
     val finalTree: Interpret[c.Tree] =
@@ -89,6 +88,7 @@ object GogglesMacros {
       } yield tree
 
     val (errorOrTree, infos) = finalTree.eval(args.toList)
+
     errorOrTree match {
       case Left(err) => c.abort(c.enclosingPosition, err.toString)
       case Right(tree) => tree
@@ -116,44 +116,21 @@ object GogglesMacros {
 
 
     def interpretLensExpr(lexpr: LensExpr): Interpret[c.Tree] = {
-      def getOpticTypeFromArg(actualType: c.Type): Interpret[OpticType] =
-        actualType.erasure.typeSymbol.name.toString match {
-          case "Fold" => Parse.pure(OpticType.FoldType)
-          case "Getter" => Parse.pure(OpticType.GetterType)
-          case "PSetter" => Parse.pure(OpticType.SetterType)
-          case "PTraversal" => Parse.pure(OpticType.TraversalType)
-          case "POptional" => Parse.pure(OpticType.OptionalType)
-          case "PPrism" => Parse.pure(OpticType.PrismType)
-          case "PLens" => Parse.pure(OpticType.LensType)
-          case "PIso" => Parse.pure(OpticType.IsoType)
-          case n => Parse.raiseError(OpticTypecheckFailed(actualType.toString))
-        }
 
-      def patternMatchOrElse[A, R](a: A, orElse: => ParseError)(pf: PartialFunction[A,R]): Interpret[R] =
+      def patternMatchOrElse[A, R](a: A, orElse: => GogglesError)(pf: PartialFunction[A,R]): Interpret[R] =
         if (pf.isDefinedAt(a)) Parse.pure(pf(a))
         else Parse.raiseError(orElse)
 
       def getLastOutputType(name: String): Interpret[c.Type] =
         getLastParseInfo(name).map(_.outType)
 
-      def getInputOutputTypes(actualType: c.Type, opticType: OpticType): Interpret[(c.Type, c.Type)] = {
-        val typeArgs = actualType.typeArgs
-        if (opticType.polymorphic && typeArgs.length == 4) {
-          Parse.pure((typeArgs(0), typeArgs(2)))
-        } else if (typeArgs.length == 2) {
-          Parse.pure((typeArgs(0), typeArgs(1)))
-        } else {
-          Parse.raiseError(OpticTypecheckFailed(actualType.toString))
-        }
-      }
-
-      def typeCheckOrElse(tree: c.Tree, orElse: => ParseError): Interpret[c.Tree] = {
+      def typeCheckOrElse(tree: c.Tree, orElse: => GogglesError): Interpret[c.Tree] = {
         val typed = c.typecheck(tree, silent = true)
         if (typed.isEmpty) Parse.raiseError(orElse)
         else Parse.pure(typed)
       }
 
-      def checkOrElse[A](a: A, orElse: => ParseError)(p: A => Boolean): Interpret[A] =
+      def checkOrElse[A](a: A, orElse: => GogglesError)(p: A => Boolean): Interpret[A] =
         if (p(a)) Parse.pure(a)
         else Parse.raiseError(orElse)
 
@@ -203,13 +180,38 @@ object GogglesMacros {
       def interpretNamedRefGetterSetter(name: String): Interpret[c.Tree] = {
         for {
           inputType <- getLastOutputType(name)
-          getter <- checkOrElse(inputType.member(TermName(name)), InvalidGetter(name))(isGetter(name))
+          getter <- checkOrElse(inputType.member(TermName(name)), NameNotFound(name, inputType))(isGetter(name))
           outputType = getter.info
           _ <- storeParseInfo(s".$name", inputType, outputType, LensType)
         } yield q"_root_.monocle.Lens((s: $inputType) => s.${TermName(name)})(a => (s: $inputType) => s.copy(${TermName(name)} = a))"
       }
 
       def interpretInterpolatedLens: Interpret[c.Tree] = {
+        def getOpticTypeFromArg(actualType: c.Type): Interpret[OpticType] = {
+          actualType.erasure.typeSymbol.name.toString match {
+            case "Fold" => Parse.pure(OpticType.FoldType)
+            case "Getter" => Parse.pure(OpticType.GetterType)
+            case "PSetter" => Parse.pure(OpticType.SetterType)
+            case "PTraversal" => Parse.pure(OpticType.TraversalType)
+            case "POptional" => Parse.pure(OpticType.OptionalType)
+            case "PPrism" => Parse.pure(OpticType.PrismType)
+            case "PLens" => Parse.pure(OpticType.LensType)
+            case "PIso" => Parse.pure(OpticType.IsoType)
+            case n => Parse.raiseError(InterpNotAnOptic(n, actualType))
+          }
+        }
+
+        def getInputOutputTypes(actualType: c.Type, opticType: OpticType): Interpret[(c.Type, c.Type)] = {
+          val typeArgs = actualType.typeArgs
+          if (opticType.polymorphic && typeArgs.length == 4) {
+            Parse.pure((typeArgs(0), typeArgs(2)))
+          } else if (typeArgs.length == 2) {
+            Parse.pure((typeArgs(0), typeArgs(1)))
+          } else {
+            Parse.raiseError(UnexpectedOpticKind(actualType, typeArgs.length))
+          }
+        }
+
         for {
           arg <- Parse.popArg[c.Type, c.Expr[Any]]
           opticType <- getOpticTypeFromArg(arg.actualType)
@@ -236,8 +238,8 @@ object GogglesMacros {
         for {
           inputType <- getLastOutputType("*")
           untypedTree = q"implicitly[_root_.monocle.function.Each[$inputType, _]]"
-          typedTree <- typeCheckOrElse(untypedTree, ImplicitEachNotFound(inputType.toString))
-          outputType <- patternMatchOrElse(typedTree, ImplicitEachNotFound(inputType.toString)) {
+          typedTree <- typeCheckOrElse(untypedTree, ImplicitEachNotFound(inputType))
+          outputType <- patternMatchOrElse(typedTree, ImplicitEachNotFound(inputType)) {
             case ImplicitEachTargetType(nextType) => nextType
           }
           _ <- storeParseInfo("*", inputType, outputType, TraversalType)
@@ -260,8 +262,8 @@ object GogglesMacros {
         for {
           inputType <- getLastOutputType("?")
           untypedTree = q"implicitly[_root_.monocle.function.Possible[$inputType, _]]"
-          typedTree <- typeCheckOrElse(untypedTree, ImplicitPossibleNotFound(inputType.toString))
-          outputType <- patternMatchOrElse(typedTree, ImplicitPossibleNotFound(inputType.toString)) {
+          typedTree <- typeCheckOrElse(untypedTree, ImplicitPossibleNotFound(inputType))
+          outputType <- patternMatchOrElse(typedTree, ImplicitPossibleNotFound(inputType)) {
             case ImplicitPossibleTargetType(nextType) => nextType
           }
           _ <- storeParseInfo("?", inputType, outputType, OptionalType)
@@ -286,8 +288,8 @@ object GogglesMacros {
         for {
           inputType <- getLastOutputType(label)
           untypedTree = q"implicitly[_root_.monocle.function.Index[$inputType,_,_]]"
-          typedTree <- typeCheckOrElse(untypedTree, ImplicitIndexNotFound(inputType.toString))
-          outputType <- patternMatchOrElse(typedTree, ImplicitIndexNotFound(inputType.toString)) {
+          typedTree <- typeCheckOrElse(untypedTree, ImplicitIndexNotFound(inputType))
+          outputType <- patternMatchOrElse(typedTree, ImplicitIndexNotFound(inputType)) {
             case ImplicitIndexTargetType(nextType) => nextType
           }
           _ <- storeParseInfo(label, inputType, outputType, OptionalType)
@@ -307,7 +309,7 @@ object GogglesMacros {
     def getLastParseInfo(name: String): Interpret[ParseInfo[c.Type]] = {
       Parse.getLastParseInfo[c.Type, c.Expr[Any]].flatMap {
         case Some(info) => Parse.pure(info)
-        case None => Parse.raiseError(MissingInputType(name))
+        case None => Parse.raiseError(ParseInfoNotFound)
       }
     }
 
@@ -319,7 +321,7 @@ object GogglesMacros {
           case None => Some(opticType)
         }
         composed <- Parse.fromOption(nextOpticType,
-                                     InvalidOpticComposition(lastInfo.fold(opticType)(_.compositeOpticType), opticType))
+                                     WrongKindOfOptic(lastInfo.fold(opticType)(_.compositeOpticType), opticType))
         _ <- Parse.storeParseInfo(ParseInfo(name, inType, outType, opticType, composed))
       } yield ()
     }

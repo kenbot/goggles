@@ -11,5 +11,5 @@ object Token {
   case object Question extends Token
   case object OpenBracket extends Token
   case object CloseBracket extends Token
-  case class Unrecognised(string: String) extends Token
+  case class Unrecognised(ch: Char) extends Token
 }

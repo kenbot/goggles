@@ -43,7 +43,7 @@ class LexerSpec extends Specification with ScalaCheck { def is =
 
   def gibberish = prop { char: Char =>
     (!char.isLetterOrDigit && !Set('[', ']', '.', '*', '_')(char)) ==> {
-      Lexer(List(char.toString)) === List(Unrecognised(char.toString))
+      Lexer(List(char.toString)) === List(Unrecognised(char))
     }
   }
 }
