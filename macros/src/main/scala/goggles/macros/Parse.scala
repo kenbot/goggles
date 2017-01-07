@@ -2,7 +2,7 @@ package goggles.macros
 
 import scalaz._, Scalaz._
 
-case class ParseInfo[T](label: String, inType: T, outType: T, opticType: OpticType, compositeOpticType: OpticType) {
+case class ParseInfo[T](label: String, sourceType: T, targetType: T, opticType: OpticType, compositeOpticType: OpticType) {
 
   def pretty: String = {
     val opticString =
@@ -13,7 +13,7 @@ case class ParseInfo[T](label: String, inType: T, outType: T, opticType: OpticTy
       if (t.toString.startsWith("=>")) s"($t)"
       else t.toString
 
-    s"$label : ${getTypeString(inType)} => ${getTypeString(outType)} $opticString"
+    s"$label : ${getTypeString(sourceType)} => ${getTypeString(targetType)} $opticString"
   }
 }
 case class ParseState[T,Arg](args: List[Arg], infos: List[ParseInfo[T]])

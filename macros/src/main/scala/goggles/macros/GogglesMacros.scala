@@ -18,7 +18,7 @@ object GogglesMacros {
 
     def getterExpression(tree: c.Tree): Interpret[c.Tree] = {
       for {
-        info <- Parse.getLastParseInfoOrElse[c.Type, c.Expr[Any]](ParseInfoNotFound)
+        info <- Parse.getLastParseInfoOrElse[c.Type, c.Expr[Any]](ParseInfoNotFound(show(tree)))
         verb <- Parse.fromOption(info.compositeOpticType.getVerb, GetVerbNotFound(info.compositeOpticType))
       } yield q"($tree).${TermName(verb)}(())"
     }
@@ -49,7 +49,7 @@ object GogglesMacros {
 
     def setterExpression(tree: c.Tree): Interpret[c.Tree] = {
       for {
-        info <- Parse.getLastParseInfoOrElse[c.Type, c.Expr[Any]](ParseInfoNotFound)
+        info <- Parse.getLastParseInfoOrElse[c.Type, c.Expr[Any]](ParseInfoNotFound(show(tree)))
       } yield info.compositeOpticType match {
         case OpticType.SetterType => tree
         case x => q"($tree).asSetter"
@@ -121,8 +121,8 @@ object GogglesMacros {
         if (pf.isDefinedAt(a)) Parse.pure(pf(a))
         else Parse.raiseError(orElse)
 
-      def getLastOutputType(name: String): Interpret[c.Type] =
-        getLastParseInfo(name).map(_.outType)
+      def getLastTargetType(name: String): Interpret[c.Type] =
+        getLastParseInfo(name).map(_.targetType)
 
       def typeCheckOrElse(tree: c.Tree, orElse: => GogglesError): Interpret[c.Tree] = {
         val typed = c.typecheck(tree, silent = true)
@@ -130,60 +130,43 @@ object GogglesMacros {
         else Parse.pure(typed)
       }
 
-      def checkOrElse[A](a: A, orElse: => GogglesError)(p: A => Boolean): Interpret[A] =
-        if (p(a)) Parse.pure(a)
-        else Parse.raiseError(orElse)
-
-      def isGetter(name: String)(sym: c.Symbol): Boolean = {
-        sym.name == TermName(name) &&
-          sym.isMethod &&
-          sym.asMethod.paramLists.flatten == Nil
-      }
-
-      /*
-      def interpretNamedRefGetter(name: String): Interpret[c.Tree] = {
-        for {
-          inputType <- getLastOutputType(name)
-          getter <- checkOrElse(inputType.member(TermName(name)), InvalidGetter(name))(isGetter(name))
-          outputType = getter.info
-          _ <- storeParseInfo(s".$name", inputType, outputType, GetterType)
-        } yield  q"_root_.monocle.Getter(_.${TermName(name)})"
-      }
-
-      def interpretNamedRefSetter(name: String): Interpret[c.Tree] = {
-        def isValidCopyMethod(sym: c.Symbol): Boolean = {
-          sym.name == TermName("copy") &&
-            sym.isMethod &&
-            sym.asMethod.paramLists.length == 1
-        }
-
-        def getSetterType(method: c.Symbol): Option[c.Type] = {
-          if (isValidCopyMethod(method)) {
-            for {
-              paramList <- method.asMethod.paramLists.headOption
-              param <- paramList.find(_.name == TermName(name))
-            } yield param.info
-          } else None
-        }
-
-        for {
-          inputType <- getLastOutputType(name)
-          copyMethod = inputType.member(TermName("copy")).asMethod
-          outputType <- Parse.fromOption(getSetterType(copyMethod), InvalidSetter(name))
-          _ <- storeParseInfo(s".$name", inputType, outputType, SetterType)
-        } yield {
-          q"_root_.monocle.Setter[$inputType, $outputType](f => s => s.copy(${TermName(name)} = f(s.${TermName(name)})))"
-        }
-      }
-      */
-
       def interpretNamedRefGetterSetter(name: String): Interpret[c.Tree] = {
+        def validateGetter(sourceType: c.Type): Interpret[c.Type] = {
+          val getter = sourceType.member(TermName(name))
+          if (getter == NoSymbol) Parse.raiseError(NameNotFound(name, sourceType))
+          else if (!getter.isMethod) Parse.raiseError(NameNotAMethod(name, sourceType))
+          else {
+            getter.asMethod.paramLists match {
+              case List(_, _, _*) =>  Parse.raiseError(NameHasMultiParamLists(name, sourceType))
+              case List(List(_, _*)) => Parse.raiseError(NameHasArguments(name, sourceType))
+              case Nil | List(Nil) => Parse.pure(getter.info)
+            }
+          }
+        }
+
+        def validateSetter(sourceType: c.Type): Interpret[Unit] = {
+          val copyMethod = sourceType.member(TermName("copy"))
+          if (copyMethod == NoSymbol) Parse.raiseError(CopyMethodNotFound(name, sourceType))
+          else if (!copyMethod.isMethod) Parse.raiseError(CopyMethodNotAMethod(name, sourceType))
+          else {
+            copyMethod.asMethod.paramLists match {
+              case Nil | List(Nil) => Parse.raiseError(CopyMethodHasNoArguments(name, sourceType))
+              case List(_, _, _*) =>  Parse.raiseError(CopyMethodHasMultiParamLists(name, sourceType))
+              case List(args) if !args.exists(_.name == TermName(name)) => Parse.raiseError(CopyMethodLacksNamedArgument(name, sourceType))
+              case List(args) if args.exists(!_.asTerm.isParamWithDefault) =>
+                val argsWithNoDefaults = args.filterNot(_.asTerm.isParamWithDefault).map(_.name.toString)
+                Parse.raiseError(CopyMethodLacksParameterDefaults(name, sourceType, argsWithNoDefaults))
+              case _ => Parse.pure(())
+            }
+          }
+        }
+
         for {
-          inputType <- getLastOutputType(name)
-          getter <- checkOrElse(inputType.member(TermName(name)), NameNotFound(name, inputType))(isGetter(name))
-          outputType = getter.info
-          _ <- storeParseInfo(s".$name", inputType, outputType, LensType)
-        } yield q"_root_.monocle.Lens((s: $inputType) => s.${TermName(name)})(a => (s: $inputType) => s.copy(${TermName(name)} = a))"
+          sourceType <- getLastTargetType(name)
+          targetType <- validateGetter(sourceType)
+          _ <- validateSetter(sourceType)
+          _ <- storeParseInfo(s".$name", sourceType, targetType, LensType)
+        } yield q"_root_.monocle.Lens((s: $sourceType) => s.${TermName(name)})(a => (s: $sourceType) => s.copy(${TermName(name)} = a))"
       }
 
       def interpretInterpolatedLens: Interpret[c.Tree] = {
@@ -236,13 +219,13 @@ object GogglesMacros {
         }
 
         for {
-          inputType <- getLastOutputType("*")
-          untypedTree = q"implicitly[_root_.monocle.function.Each[$inputType, _]]"
-          typedTree <- typeCheckOrElse(untypedTree, ImplicitEachNotFound(inputType))
-          outputType <- patternMatchOrElse(typedTree, ImplicitEachNotFound(inputType)) {
+          sourceType <- getLastTargetType("*")
+          untypedTree = q"implicitly[_root_.monocle.function.Each[$sourceType, _]]"
+          typedTree <- typeCheckOrElse(untypedTree, ImplicitEachNotFound(sourceType))
+          targetType <- patternMatchOrElse(typedTree, UnexpectedEachStructure) {
             case ImplicitEachTargetType(nextType) => nextType
           }
-          _ <- storeParseInfo("*", inputType, outputType, TraversalType)
+          _ <- storeParseInfo("*", sourceType, targetType, TraversalType)
         } yield q"_root_.monocle.function.Each.each"
       }
 
@@ -260,13 +243,13 @@ object GogglesMacros {
           }
         }
         for {
-          inputType <- getLastOutputType("?")
-          untypedTree = q"implicitly[_root_.monocle.function.Possible[$inputType, _]]"
-          typedTree <- typeCheckOrElse(untypedTree, ImplicitPossibleNotFound(inputType))
-          outputType <- patternMatchOrElse(typedTree, ImplicitPossibleNotFound(inputType)) {
+          sourceType <- getLastTargetType("?")
+          untypedTree = q"implicitly[_root_.monocle.function.Possible[$sourceType, _]]"
+          typedTree <- typeCheckOrElse(untypedTree, ImplicitPossibleNotFound(sourceType))
+          targetType <- patternMatchOrElse(typedTree, UnexpectedPossibleStructure) {
             case ImplicitPossibleTargetType(nextType) => nextType
           }
-          _ <- storeParseInfo("?", inputType, outputType, OptionalType)
+          _ <- storeParseInfo("?", sourceType, targetType, OptionalType)
         } yield q"_root_.monocle.function.Possible.possible"
       }
 
@@ -286,13 +269,13 @@ object GogglesMacros {
 
         val label = s"[${show(i)}]"
         for {
-          inputType <- getLastOutputType(label)
-          untypedTree = q"implicitly[_root_.monocle.function.Index[$inputType,_,_]]"
-          typedTree <- typeCheckOrElse(untypedTree, ImplicitIndexNotFound(inputType))
-          outputType <- patternMatchOrElse(typedTree, ImplicitIndexNotFound(inputType)) {
+          sourceType <- getLastTargetType(label)
+          untypedTree = q"implicitly[_root_.monocle.function.Index[$sourceType,_,_]]"
+          typedTree <- typeCheckOrElse(untypedTree, ImplicitIndexNotFound(sourceType))
+          targetType <- patternMatchOrElse(typedTree, UnexpectedIndexStructure) {
             case ImplicitIndexTargetType(nextType) => nextType
           }
-          _ <- storeParseInfo(label, inputType, outputType, OptionalType)
+          _ <- storeParseInfo(label, sourceType, targetType, OptionalType)
         } yield q"_root_.monocle.function.Index.index($i)"
       }
 
@@ -309,7 +292,7 @@ object GogglesMacros {
     def getLastParseInfo(name: String): Interpret[ParseInfo[c.Type]] = {
       Parse.getLastParseInfo[c.Type, c.Expr[Any]].flatMap {
         case Some(info) => Parse.pure(info)
-        case None => Parse.raiseError(ParseInfoNotFound)
+        case None => Parse.raiseError(ParseInfoNotFound(name))
       }
     }
 

@@ -21,8 +21,9 @@ case class VerbatimIndexNotPositiveInt(expr: String) extends ParsingError
 
 sealed trait InterpretError extends GogglesError
 case class NameNotFound(name: String, sourceType: Universe#Type) extends InterpretError
+case class NameNotAMethod(name: String, sourceType: Universe#Type) extends InterpretError
 case class NameHasArguments(name: String, sourceType: Universe#Type) extends InterpretError
-case class NameHasMultipleParameterLists(name: String, onType: Universe#Type) extends InterpretError
+case class NameHasMultiParamLists(name: String, onType: Universe#Type) extends InterpretError
 case class InterpNotAnOptic(name: String, actualType: Universe#Type) extends InterpretError
 case class WrongKindOfOptic(from: OpticType, to: OpticType) extends InterpretError
 case class TypesDontMatch(sourceType: Universe#Type, targetType: Universe#Type) extends InterpretError
@@ -32,13 +33,15 @@ case class ImplicitIndexNotFound(sourceType: Universe#Type) extends InterpretErr
 case class ImplicitEachNotFoundForAdtSubClass(subType: Universe#Type, superType: Universe#Type) extends InterpretError
 case class ImplicitPossibleNotFoundForAdtSubClass(subType: Universe#Type, superType: Universe#Type) extends InterpretError
 case class ImplicitIndexNotFoundForAdtSubClass(subType: Universe#Type, superType: Universe#Type) extends InterpretError
-case class CopyMethodMissing(name: String, sourceType: Universe#Type) extends InterpretError
+case class CopyMethodNotFound(name: String, sourceType: Universe#Type) extends InterpretError
+case class CopyMethodNotAMethod(name: String, sourceType: Universe#Type) extends InterpretError
 case class CopyMethodHasMultiParamLists(name: String, sourceType: Universe#Type) extends InterpretError
+case class CopyMethodHasNoArguments(name: String, sourceType: Universe#Type) extends InterpretError
 case class CopyMethodLacksNamedArgument(name: String, sourceType: Universe#Type) extends InterpretError
-case class CopyMethodLacksParameterDefaults(name: String, sourceType: Universe#Type) extends InterpretError
+case class CopyMethodLacksParameterDefaults(name: String, sourceType: Universe#Type, argsWithNoDefault: List[String]) extends InterpretError
 
 sealed trait InternalError extends GogglesError
-case object ParseInfoNotFound extends GogglesError
+case class ParseInfoNotFound(label: String) extends GogglesError
 case object UnexpectedEachStructure extends InternalError
 case object UnexpectedPossibleStructure extends InternalError
 case object UnexpectedIndexStructure extends InternalError
