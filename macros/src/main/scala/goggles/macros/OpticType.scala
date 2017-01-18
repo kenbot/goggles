@@ -12,6 +12,11 @@ private[goggles] sealed abstract class OpticType(
     if (polymorphic) typeName.tail
     else typeName
 
+  def article: String = this match {
+    case FoldType | GetterType | SetterType | TraversalType | PrismType | LensType => "a"
+    case OptionalType | IsoType => "an"
+  }
+
   /* The result type of row.composeXXX(column) for Monocle optics.
    *
    *    FGSTOPLI

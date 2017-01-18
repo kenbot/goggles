@@ -1,9 +1,9 @@
-scalaVersion := "2.12.0"
+scalaVersion := "2.12.1"
 
 name := "Goggles"
 version := "0.1"
 
-scalaVersion in ThisBuild := "2.12.0"
+scalaVersion in ThisBuild := "2.12.1"
 run := run in Compile in core
 
 resolvers += Resolver.sonatypeRepo("releases")

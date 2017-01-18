@@ -6,7 +6,6 @@ import Fixture._
 
 object Generators {
 
-
   val genItem: Gen[Item] = arbitrary[Int].map(Item.apply)
   implicit def arbItem = Arbitrary(genItem)
 

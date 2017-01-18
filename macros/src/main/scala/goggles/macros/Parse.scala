@@ -2,7 +2,7 @@ package goggles.macros
 
 import scalaz._, Scalaz._
 
-case class ParseInfo[T](label: String, sourceType: T, targetType: T, opticType: OpticType, compositeOpticType: OpticType) {
+case class ParseInfo[+T](label: String, sourceType: T, targetType: T, opticType: OpticType, compositeOpticType: OpticType) {
 
   def pretty: String = {
     val opticString =
@@ -21,7 +21,7 @@ case class ParseState[T,Arg](args: List[Arg], infos: List[ParseInfo[T]])
 trait Parse[T, Arg, A] {
   self =>
 
-  def apply(state: ParseState[T,Arg]): (Either[GogglesError,A], ParseState[T,Arg])
+  def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],A], ParseState[T,Arg])
 
   final def map[B](f: A => B): Parse[T,Arg,B] = { args =>
     val (errorOrA, state) = self(args)
@@ -35,7 +35,7 @@ trait Parse[T, Arg, A] {
     }
   }
 
-  final def eval(args: List[Arg]): (Either[GogglesError,A], List[ParseInfo[T]]) = {
+  final def eval(args: List[Arg]): (Either[GogglesError[T],A], List[ParseInfo[T]]) = {
     val (errorOrA, ParseState(_, infos)) = apply(ParseState(args, Nil))
     (errorOrA, infos.reverse)
   }
@@ -44,22 +44,22 @@ trait Parse[T, Arg, A] {
 object Parse {
   def pure[T,Arg,A](a: => A): Parse[T,Arg,A] = (Right(a), _)
 
-  def fromOption[T, Arg, A](opt: Option[A], orElse: => GogglesError): Parse[T, Arg, A] = opt match {
+  def fromOption[T, Arg, A](opt: Option[A], orElse: => GogglesError[T]): Parse[T, Arg, A] = opt match {
     case Some(a) => pure(a)
     case None => raiseError(orElse)
   }
 
-  def fromEither[T, Arg, A](either: Either[GogglesError,A]): Parse[T,Arg,A] =
+  def fromEither[T, Arg, A](either: Either[GogglesError[T],A]): Parse[T,Arg,A] =
     (either, _)
 
-  def raiseError[T, Arg, A](e: GogglesError): Parse[T, Arg, A] =
+  def raiseError[T, Arg, A](e: GogglesError[T]): Parse[T, Arg, A] =
     (Left(e), _)
 
   def getLastParseInfo[T,Arg]: Parse[T, Arg, Option[ParseInfo[T]]] = {
     case state @ ParseState(_, infos) => (Right(infos.headOption), state)
   }
 
-  def getLastParseInfoOrElse[T,Arg](orElse: => GogglesError): Parse[T, Arg, ParseInfo[T]] = {
+  def getLastParseInfoOrElse[T,Arg](orElse: => GogglesError[T]): Parse[T, Arg, ParseInfo[T]] = {
     case state @ ParseState(_, info :: _) => (Right(info), state)
     case state @ ParseState(_, Nil) => (Left(orElse), state)
   }

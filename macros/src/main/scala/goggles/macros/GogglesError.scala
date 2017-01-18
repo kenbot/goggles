@@ -1,51 +1,47 @@
 package goggles.macros
 
-import scala.reflect.api.Universe
+sealed trait GogglesError[+T]
 
-sealed trait GogglesError
+sealed trait SyntaxError extends GogglesError[Nothing]
+case class UnrecognisedChar(char: Char) extends SyntaxError
+case object EmptyError extends SyntaxError
+case class NameWithNoDot(name: String) extends SyntaxError
+case object InterpOpticWithNoDot extends SyntaxError
+case class InvalidAfterDot(tok: Token) extends SyntaxError
+case class NonInterpolatedStart(tok: Token) extends SyntaxError
+case object UnexpectedCloseBracket extends SyntaxError
+case object EndingDot extends SyntaxError
+case object NoIndexSupplied extends SyntaxError
+case class InvalidIndexSupplied(tok: Token) extends SyntaxError
+case object UnclosedOpenBracket extends SyntaxError
+case class VerbatimIndexNotInt(expr: String) extends SyntaxError
 
-sealed trait ParsingError extends GogglesError
-case class UnrecognisedChar(char: Char) extends ParsingError
-case object EmptyError extends ParsingError
-case class NameWithNoDot(name: String) extends ParsingError
-case object InterpOpticWithNoDot extends ParsingError
-case class InvalidAfterDot(tok: Token) extends ParsingError
-case class NonInterpolatedStart(tok: Token) extends ParsingError
-case object UnexpectedCloseBracket extends ParsingError
-case object EndingDot extends ParsingError
-case object NoIndexSupplied extends ParsingError
-case class InvalidIndexSupplied(tok: Token) extends ParsingError
-case object UnclosedOpenBracket extends ParsingError
-case class VerbatimIndexNotPositiveInt(expr: String) extends ParsingError
+sealed trait MacroUserError[+T] extends GogglesError[T]
+case class NameNotFound[T](name: String, sourceType: T) extends MacroUserError[T]
+case class NameNotAMethod[T](name: String, sourceType: T) extends MacroUserError[T]
+case class NameHasArguments[T](name: String, sourceType: T) extends MacroUserError[T]
+case class NameHasMultiParamLists[T](name: String, onType: T) extends MacroUserError[T]
+case class InterpNotAnOptic[T](actualType: T) extends MacroUserError[T]
+case class WrongKindOfOptic[T](from: OpticType, to: OpticType) extends MacroUserError[T]
+case class TypesDontMatch[T](expectedType: T, actualType: T) extends MacroUserError[T]
+case class ImplicitEachNotFound[T](sourceType: T) extends MacroUserError[T]
+case class ImplicitPossibleNotFound[T](sourceType: T) extends MacroUserError[T]
+case class ImplicitIndexNotFound[T](sourceType: T, indexType: T) extends MacroUserError[T]
+//case class ImplicitEachNotFoundForAdtSubClass[T](sourceSubType: T, sourceSuperType: T) extends MacroUserError[T]
+//case class ImplicitPossibleNotFoundForAdtSubClass[T](sourceSubType: T, sourceSuperType: T) extends MacroUserError[T]
+//case class ImplicitIndexNotFoundForAdtSubClass[T](sourceSubType: T, sourceSuperType: T) extends MacroUserError[T]
+case class CopyMethodNotFound[T](name: String, sourceType: T) extends MacroUserError[T]
+case class CopyMethodNotAMethod[T](name: String, sourceType: T) extends MacroUserError[T]
+case class CopyMethodHasMultiParamLists[T](name: String, sourceType: T) extends MacroUserError[T]
+case class CopyMethodHasNoArguments[T](name: String, sourceType: T) extends MacroUserError[T]
+case class CopyMethodLacksNamedArgument[T](name: String, sourceType: T) extends MacroUserError[T]
+case class CopyMethodLacksParameterDefaults[T](name: String, sourceType: T, argsWithNoDefault: List[String]) extends MacroUserError[T]
 
-
-sealed trait InterpretError extends GogglesError
-case class NameNotFound(name: String, sourceType: Universe#Type) extends InterpretError
-case class NameNotAMethod(name: String, sourceType: Universe#Type) extends InterpretError
-case class NameHasArguments(name: String, sourceType: Universe#Type) extends InterpretError
-case class NameHasMultiParamLists(name: String, onType: Universe#Type) extends InterpretError
-case class InterpNotAnOptic(name: String, actualType: Universe#Type) extends InterpretError
-case class WrongKindOfOptic(from: OpticType, to: OpticType) extends InterpretError
-case class TypesDontMatch(sourceType: Universe#Type, targetType: Universe#Type) extends InterpretError
-case class ImplicitEachNotFound(sourceType: Universe#Type) extends InterpretError
-case class ImplicitPossibleNotFound(sourceType: Universe#Type) extends InterpretError
-case class ImplicitIndexNotFound(sourceType: Universe#Type) extends InterpretError
-case class ImplicitEachNotFoundForAdtSubClass(subType: Universe#Type, superType: Universe#Type) extends InterpretError
-case class ImplicitPossibleNotFoundForAdtSubClass(subType: Universe#Type, superType: Universe#Type) extends InterpretError
-case class ImplicitIndexNotFoundForAdtSubClass(subType: Universe#Type, superType: Universe#Type) extends InterpretError
-case class CopyMethodNotFound(name: String, sourceType: Universe#Type) extends InterpretError
-case class CopyMethodNotAMethod(name: String, sourceType: Universe#Type) extends InterpretError
-case class CopyMethodHasMultiParamLists(name: String, sourceType: Universe#Type) extends InterpretError
-case class CopyMethodHasNoArguments(name: String, sourceType: Universe#Type) extends InterpretError
-case class CopyMethodLacksNamedArgument(name: String, sourceType: Universe#Type) extends InterpretError
-case class CopyMethodLacksParameterDefaults(name: String, sourceType: Universe#Type, argsWithNoDefault: List[String]) extends InterpretError
-
-sealed trait InternalError extends GogglesError
-case class ParseInfoNotFound(label: String) extends GogglesError
-case object UnexpectedEachStructure extends InternalError
-case object UnexpectedPossibleStructure extends InternalError
-case object UnexpectedIndexStructure extends InternalError
-case class UnexpectedOpticKind(actualType: Universe#Type, numTypeArgs: Int) extends InternalError
-case class GetVerbNotFound(opticType: OpticType) extends InternalError
-case object NotEnoughArguments extends InternalError
-
+sealed trait MacroInternalError[+T] extends GogglesError[T]
+case class ParseInfoNotFound(label: String) extends MacroInternalError[Nothing]
+case object UnexpectedEachStructure extends MacroInternalError[Nothing]
+case object UnexpectedPossibleStructure extends MacroInternalError[Nothing]
+case class UnexpectedIndexStructure[T](sourceType: T, indexType: T) extends MacroInternalError[T]
+case class UnexpectedOpticKind[T](actualType: T, numTypeArgs: Int) extends MacroInternalError[T]
+case class GetVerbNotFound(opticType: OpticType) extends MacroInternalError[Nothing]
+case object NotEnoughArguments extends MacroInternalError[Nothing]
