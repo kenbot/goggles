@@ -1,7 +1,5 @@
 package goggles
 
-import monocle.Lens
-import monocle.macros.GenLens
 import org.specs2._
 
 import monocle.function.Each._

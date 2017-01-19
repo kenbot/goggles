@@ -2,7 +2,7 @@ package goggles.macros
 
 import scala.util.Try
 
-import scalaz._, Scalaz._
+import scalaz._
 
 object Parser {
   import AST._

@@ -5,7 +5,6 @@ import goggles.testdsl._
 import goggles.macros._
 import monocle.{Setter, Getter}
 import org.specs2._
-import scala.reflect.runtime.universe.typeOf
 
 import Fixture._
 

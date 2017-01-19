@@ -1,6 +1,5 @@
 package goggles.macros
 
-import scala.reflect.api.Universe
 import scala.reflect.macros.whitebox
 
 
