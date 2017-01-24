@@ -1,5 +1,5 @@
 # Goggles
-## Principled, typesafe lens DSL
+## Principled, typesafe optics DSL
 Optics libraries are either too limited, or too hard to use. Goggles builds on Scala's powerful Monocle library, making immutability easy, fun, and boring, like it should be. 
 
 You already know how to use it. 
@@ -53,12 +53,14 @@ _Optics_ are a family of pure-functional techniques that model access and mutati
 ### 2. Power vs ease-of-use. Why choose?
 The modifying-immutable-structures problem has been addressed in a variety of ways. 
 
-Dynamic environments such as Clojure, jq, and Javascript have features that allow easy manipulation of structures without mutation, but in a very constrained, domain-specific context.  Haskell's `Control.Lens` is wonderfully powerful and abstract, but has a reputation for being difficult to learn and use. Why can't we have our cake and eat it too? 
+Dynamic environments such as Clojure, jq, and Javascript have features that allow easy manipulation of structures without mutation, but in a very constrained, domain-specific context.  
 
-### 3. Monocle + DSL
+Haskell's `Control.Lens` is wonderfully powerful and abstract, but has a reputation for being difficult to learn and use. Why can't we have our cake and eat it too? 
+
+### 3. Monocle + Goggles
 Monocle is the leading optics library in Scala; it has a small, well-designed core, but its day-to-day user experience leaves a little to be desired. It has much of the power of `Control.Lens`, and also has much of the conceptual weight and learning curve. 
 
-This makes it an ideal core for building an optics DSL. Goggles aims to provide an intuitive, discoverable interface for beginners, while helping experienced users get the job done with a minimum of fuss. 
+This makes it an ideal core for building an optics DSL. Goggles aims to provide an intuitive, discoverable interface over Monocle for beginners, while helping experienced users get the job done with a minimum of fuss. 
 
 ## Features
 ### Navigate case class-like fields by name
