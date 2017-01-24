@@ -20,8 +20,8 @@ object TestMacros {
   private def handleResult(c: whitebox.Context)(
     result: Either[GogglesError[c.Type], c.Tree]): c.Tree = {
 
-    import c.universe._
     import OpticType._
+    import c.universe._
 
     implicit val opticTypeLiftable = Liftable[OpticType] {
       case FoldType => q"_root_.goggles.macros.OpticType.FoldType"

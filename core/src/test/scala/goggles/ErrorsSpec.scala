@@ -1,10 +1,10 @@
 package goggles
 
-import goggles.macros.OpticType.{SetterType, GetterType}
-import goggles.testdsl._
 import goggles.macros._
-import monocle.{Setter, Getter}
+import goggles.testdsl._
+import monocle.{Getter, Setter}
 import org.specs2._
+import OpticType._
 
 import Fixture._
 
