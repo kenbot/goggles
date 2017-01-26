@@ -9,7 +9,7 @@ You already know how to use it.
 import goggles._ 
 
 case class Topping(cherries: Int)
-case class Cake(toppings: List[Topping], Option[])
+case class Cake(toppings: List[Topping])
 case class Bakery(cakes: List[Cake])
 
 val myBakery = Bakery(List(Cake(List(Topping(0), Topping(3))), 
@@ -19,7 +19,7 @@ val myBakery = Bakery(List(Cake(List(Topping(0), Topping(3))),
 get"$myBakery.cakes*.toppings[0].cherries"
 // List(0, 4)
 
-set"$myBasket.cakes*.toppings[0].cherries" := 7
+set"$myBakery.cakes*.toppings[0].cherries" := 7
 // Bakery(List(Cake(List(Topping(7), Topping(3))), 
 //             Cake(List(Topping(7))), 
 //             Cake(Nil)))
@@ -159,4 +159,39 @@ Any type for which an implicit `monocle.function.Index` is in scope can use `[i]
 ### Great compilation error messages
 Helpful compiler errors are a first class part of Goggles' design, hopefully encouraging exploration, clarifying optics concepts and allowing the functionality to be discoverable.
 
+## Comparison to other approaches
+### Goggles itself
+```scala
+set"$myBakery.cakes*.toppings[0].cherries" := 7
+```
 
+Goggles is not an optics library itself; it is only a new user interface built on a subset of Monocle, and interoperates seamlessly with the rest. It uses whitebox macros, meaning that the contents of the macro decide the static return type. 
+
+Goggles takes the view that macros that base their behaviour on the structure of code rather than its value are not referentially-transparent, and not consistent with the best traditions of FP. Repurposing Scala's syntax to do things that aren't Scala is surprising to users and imposes an unnecessary cognitive burden.
+
+Extensions to `StringContext` form the main mechanism, because:
+* It isn't Scala, and the String clearly demarcates regular Scala from the designated DSL area.
+* This gives us enormous flexibility to choose the syntax we want.
+There are some disadvantages:
+* There is no IDE support out of the box: it just looks like a string to IDEs. (Could this be remedied with plugins?) 
+* Because interpolated optics get evaluated before the rest of the macros, the type inference is poor for arguments. 
+
+### QuickLens ([github](https://github.com/adamw/quicklens)) 
+```scala
+modify(myBakery)(_.cakes.each.toppings.at(0).cherries).setTo(7)
+```
+
+QuickLens is designed to be a lightweight alternative to Monocle; it is solely focused on manipulating case classes. It uses a fluent API with blackbox macros, which deconstruct the given code tree to discover path information. It supports several features like "each" traversal and indexing, but lacks an overarching, cohesive optics model outside of the DSL. In addition, the fluent API supports manipulating several points in the path at once, and Prism-style navigation of sum types. 
+
+### Monocle's internal DSL ([github](https://github.com/julien-truffaut/Monocle/blob/master/macro/shared/src/main/scala/monocle/macros/syntax/GenApplyLensSyntax.scala))
+```
+myBakery.lens(_.cakes)
+```
+Monocle itself contains some internal syntactic helpers, including a simple DSL for convenient case class manipulation. Currently it uses a blackbox macro to deconstruct a code tree, which generates a `monocle.Lens`. 
+
+
+### Shapeless Lenses ([github](https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/lenses.scala)) 
+```
+lens[Bakery].cakes.get(myBakery)
+```
+Shapeless offers Lens and Prisms, which allow automatic navigation of case classes and sum types. It uses Dynamic to allow Scala-like syntax, and uses a thicket of typeclasses to prove validity. It supports indexing and products, but not traversals. As with many of Shapeless' concepts, understanding the mechanism used requires a high level of proficiency, and the compile errors are quite unhelpful.
