@@ -172,25 +172,26 @@ Goggles takes the view that macros that base their behaviour on the structure of
 Extensions to `StringContext` form the main mechanism, because:
 * It isn't Scala, and the String clearly demarcates regular Scala from the designated DSL area.
 * This gives us enormous flexibility to choose the syntax we want.
+
 There are some disadvantages:
 * There is no IDE support out of the box: it just looks like a string to IDEs. (Could this be remedied with plugins?) 
 * Because interpolated optics get evaluated before the rest of the macros, the type inference is poor for arguments. 
 
-### QuickLens ([github](https://github.com/adamw/quicklens)) 
+### [QuickLens](https://github.com/adamw/quicklens)
 ```scala
 modify(myBakery)(_.cakes.each.toppings.at(0).cherries).setTo(7)
 ```
 
 QuickLens is designed to be a lightweight alternative to Monocle; it is solely focused on manipulating case classes. It uses a fluent API with blackbox macros, which deconstruct the given code tree to discover path information. It supports several features like "each" traversal and indexing, but lacks an overarching, cohesive optics model outside of the DSL. In addition, the fluent API supports manipulating several points in the path at once, and Prism-style navigation of sum types. 
 
-### Monocle's internal DSL ([github](https://github.com/julien-truffaut/Monocle/blob/master/macro/shared/src/main/scala/monocle/macros/syntax/GenApplyLensSyntax.scala))
+### [Monocle's internal DSL](https://github.com/julien-truffaut/Monocle/blob/master/macro/shared/src/main/scala/monocle/macros/syntax/GenApplyLensSyntax.scala)
 ```
 myBakery.lens(_.cakes)
 ```
 Monocle itself contains some internal syntactic helpers, including a simple DSL for convenient case class manipulation. Currently it uses a blackbox macro to deconstruct a code tree, which generates a `monocle.Lens`. 
 
 
-### Shapeless Lenses ([github](https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/lenses.scala)) 
+### [Shapeless Lenses](https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/lenses.scala)
 ```
 lens[Bakery].cakes.get(myBakery)
 ```
