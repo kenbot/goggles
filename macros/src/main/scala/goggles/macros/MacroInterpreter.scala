@@ -10,7 +10,7 @@ object MacroInterpreter {
 
   import AST._
 
-  def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): (Either[GogglesError[c.Type], c.Tree], List[ParseInfo[c.Type]]) = {
+  def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): (Either[GogglesError[c.Type], c.Tree], List[OpticInfo[c.Type]]) = {
     import AST._
     import c.universe._
 
@@ -18,7 +18,7 @@ object MacroInterpreter {
 
     def getterExpression(tree: c.Tree): Interpret[c.Tree] = {
       for {
-        info <- Parse.getLastParseInfoOrElse[c.Type, c.Expr[Any]](ParseInfoNotFound(show(tree)))
+        info <- Parse.getLastOpticInfoOrElse[c.Type, c.Expr[Any]](OpticInfoNotFound(show(tree)))
         verb <- Parse.fromOption(info.compositeOpticType.getVerb, GetVerbNotFound(info.compositeOpticType))
       } yield q"($tree).${TermName(verb)}(())"
     }
@@ -36,7 +36,7 @@ object MacroInterpreter {
     finalTree.eval(args.toList)
   }
 
-  def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): (Either[GogglesError[c.Type], c.Tree], List[ParseInfo[c.Type]]) = {
+  def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): (Either[GogglesError[c.Type], c.Tree], List[OpticInfo[c.Type]]) = {
     import AST._
     import c.universe._
 
@@ -44,7 +44,7 @@ object MacroInterpreter {
 
     def setterExpression(tree: c.Tree): Interpret[c.Tree] = {
       for {
-        info <- Parse.getLastParseInfoOrElse[c.Type, c.Expr[Any]](ParseInfoNotFound(show(tree)))
+        info <- Parse.getLastOpticInfoOrElse[c.Type, c.Expr[Any]](OpticInfoNotFound(show(tree)))
       } yield info.compositeOpticType match {
         case OpticType.SetterType => tree
         case x => q"($tree).asSetter"
@@ -64,7 +64,7 @@ object MacroInterpreter {
     finalTree.eval(args.toList)
   }
 
-  def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): (Either[GogglesError[c.Type], c.Tree], List[ParseInfo[c.Type]]) = {
+  def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): (Either[GogglesError[c.Type], c.Tree], List[OpticInfo[c.Type]]) = {
 
     type Interpret[A] = Parse[c.Type, c.Expr[Any], A]
 
@@ -88,9 +88,9 @@ object MacroInterpreter {
     def composeAll(code: c.Tree, lensExprs: List[LensExpr]): Interpret[c.Tree] = {
       def compose(codeSoFar: c.Tree, lensExpr: LensExpr): Interpret[c.Tree] = {
         for {
-          lastInfo <- getLastParseInfo(show(codeSoFar))
+          lastInfo <- getLastOpticInfo(show(codeSoFar))
           nextLensCode <- interpretLensExpr(lensExpr)
-          thisInfo <- getLastParseInfo(show(nextLensCode))
+          thisInfo <- getLastOpticInfo(show(nextLensCode))
           tree = q"($codeSoFar).${TermName(thisInfo.opticType.composeVerb)}($nextLensCode)"
           checkedTree <- typeCheckOrElse(tree, TypesDontMatch(lastInfo.targetType, thisInfo.sourceType))
         } yield checkedTree
@@ -115,7 +115,7 @@ object MacroInterpreter {
         else Parse.raiseError(orElse)
 
       def getLastTargetType(name: String): Interpret[c.Type] =
-        getLastParseInfo(name).map(_.targetType)
+        getLastOpticInfo(name).map(_.targetType)
 
       def interpretNamedRefGetterSetter(name: String): Interpret[c.Tree] = {
         def validateGetter(sourceType: c.Type): Interpret[c.Type] = {
@@ -152,7 +152,7 @@ object MacroInterpreter {
           sourceType <- getLastTargetType(name)
           targetType <- validateGetter(sourceType)
           _ <- validateSetter(sourceType)
-          _ <- storeParseInfo(s".$name", sourceType, targetType, LensType)
+          _ <- storeOpticInfo(s".$name", sourceType, targetType, LensType)
         } yield q"_root_.monocle.Lens((s: $sourceType) => s.${TermName(name)})(a => (s: $sourceType) => s.copy(${TermName(name)} = a))"
       }
 
@@ -187,7 +187,7 @@ object MacroInterpreter {
           opticType <- getOpticTypeFromArg(arg.actualType)
           io <- getInputOutputTypes(arg.actualType, opticType)
           (inType, outType) = io
-          _ <- storeParseInfo(s"$${${show(arg.tree)}}", inType, outType, opticType)
+          _ <- storeOpticInfo(s".$${${show(arg.tree)}}", inType, outType, opticType)
         } yield arg.tree
       }
 
@@ -212,7 +212,7 @@ object MacroInterpreter {
           targetType <- patternMatchOrElse(typedTree, UnexpectedEachStructure) {
             case ImplicitEachTargetType(nextType) => nextType
           }
-          _ <- storeParseInfo("*", sourceType, targetType, TraversalType)
+          _ <- storeOpticInfo("*", sourceType, targetType, TraversalType)
         } yield q"_root_.monocle.function.Each.each"
       }
 
@@ -236,7 +236,7 @@ object MacroInterpreter {
           targetType <- patternMatchOrElse(typedTree, UnexpectedPossibleStructure) {
             case ImplicitPossibleTargetType(nextType) => nextType
           }
-          _ <- storeParseInfo("?", sourceType, targetType, OptionalType)
+          _ <- storeOpticInfo("?", sourceType, targetType, OptionalType)
         } yield q"_root_.monocle.function.Possible.possible"
       }
 
@@ -262,7 +262,7 @@ object MacroInterpreter {
           targetType <- patternMatchOrElse(typedTree, UnexpectedIndexStructure(sourceType, indexType)) {
             case ImplicitIndexTargetType(nextType) => nextType
           }
-          _ <- storeParseInfo(label, sourceType, targetType, OptionalType)
+          _ <- storeOpticInfo(label, sourceType, targetType, OptionalType)
         } yield q"_root_.monocle.function.Index.index($i)"
       }
 
@@ -276,30 +276,30 @@ object MacroInterpreter {
       }
     }
 
-    def getLastParseInfo(name: String): Interpret[ParseInfo[c.Type]] = {
-      Parse.getLastParseInfo[c.Type, c.Expr[Any]].flatMap {
+    def getLastOpticInfo(name: String): Interpret[OpticInfo[c.Type]] = {
+      Parse.getLastOpticInfo[c.Type, c.Expr[Any]].flatMap {
         case Some(info) => Parse.pure(info)
-        case None => Parse.raiseError(ParseInfoNotFound(name))
+        case None => Parse.raiseError(OpticInfoNotFound(name))
       }
     }
 
-    def storeParseInfo(name: String, inType: c.Type, outType: c.Type, opticType: OpticType): Interpret[Unit] = {
+    def storeOpticInfo(name: String, inType: c.Type, outType: c.Type, opticType: OpticType): Interpret[Unit] = {
       for {
-        lastInfo <- Parse.getLastParseInfo[c.Type, c.Expr[Any]]
+        lastInfo <- Parse.getLastOpticInfo[c.Type, c.Expr[Any]]
         nextOpticType = lastInfo match {
           case Some(info) => info.compositeOpticType.compose(opticType)
           case None => Some(opticType)
         }
         composed <- Parse.fromOption(nextOpticType,
                                      WrongKindOfOptic(lastInfo.fold(opticType)(_.compositeOpticType), opticType))
-        _ <- Parse.storeParseInfo(ParseInfo(name, inType, outType, opticType, composed))
+        _ <- Parse.storeOpticInfo(OpticInfo(name, inType, outType, opticType, composed))
       } yield ()
     }
 
     def interpretSource: Interpret[c.Tree] = {
       for {
         arg <- Parse.popArg[c.Type, c.Expr[Any]]
-        _ <- Parse.storeParseInfo(ParseInfo(s"$$arg", typeOf[Unit], arg.actualType, IsoType, IsoType))
+        _ <- Parse.storeOpticInfo(OpticInfo(s"$$arg", typeOf[Unit], arg.actualType, IsoType, IsoType))
       } yield q"_root_.goggles.macros.MacroInterpreter.const($arg)"
     }
 

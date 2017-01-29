@@ -76,7 +76,7 @@ object TestMacros {
       case CopyMethodHasNoArguments(name, sourceType) => q"_root_.goggles.macros.CopyMethodHasNoArguments[String]($name, ${typeStr(sourceType)})"
       case CopyMethodLacksNamedArgument(name, sourceType) => q"_root_.goggles.macros.CopyMethodLacksNamedArgument[String]($name, ${typeStr(sourceType)})"
       case CopyMethodLacksParameterDefaults(name, sourceType, argsWithNoDefault) => q"_root_.goggles.macros.CopyMethodLacksParameterDefaults[String]($name, ${typeStr(sourceType)}, $argsWithNoDefault)"
-      case ParseInfoNotFound(label) => q"_root_.goggles.macros.ParseInfoNotFound($label)"
+      case OpticInfoNotFound(label) => q"_root_.goggles.macros.ParseInfoNotFound($label)"
       case UnexpectedEachStructure => q"_root_.goggles.macros.UnexpectedEachStructure"
       case UnexpectedPossibleStructure => q"_root_.goggles.macros.UnexpectedPossibleStructure"
       case UnexpectedIndexStructure(sourceType, indexType) => q"_root_.goggles.macros.UnexpectedIndexStructure[String](${typeStr(sourceType)}, ${typeStr(indexType)})"

@@ -2,7 +2,7 @@ package goggles.macros
 
 import scalaz._, Scalaz._
 
-case class ParseInfo[+T](label: String, sourceType: T, targetType: T, opticType: OpticType, compositeOpticType: OpticType) {
+case class OpticInfo[+T](label: String, sourceType: T, targetType: T, opticType: OpticType, compositeOpticType: OpticType) {
 
   def pretty: String = {
     val opticString =
@@ -16,7 +16,7 @@ case class ParseInfo[+T](label: String, sourceType: T, targetType: T, opticType:
     s"$label : ${getTypeString(sourceType)} => ${getTypeString(targetType)} $opticString"
   }
 }
-case class ParseState[T,Arg](args: List[Arg], infos: List[ParseInfo[T]])
+case class ParseState[T,Arg](args: List[Arg], infos: List[OpticInfo[T]])
 
 trait Parse[T, Arg, A] {
   self =>
@@ -35,7 +35,7 @@ trait Parse[T, Arg, A] {
     }
   }
 
-  final def eval(args: List[Arg]): (Either[GogglesError[T],A], List[ParseInfo[T]]) = {
+  final def eval(args: List[Arg]): (Either[GogglesError[T],A], List[OpticInfo[T]]) = {
     val (errorOrA, ParseState(_, infos)) = apply(ParseState(args, Nil))
     (errorOrA, infos.reverse)
   }
@@ -55,16 +55,16 @@ object Parse {
   def raiseError[T, Arg, A](e: GogglesError[T]): Parse[T, Arg, A] =
     (Left(e), _)
 
-  def getLastParseInfo[T,Arg]: Parse[T, Arg, Option[ParseInfo[T]]] = {
+  def getLastOpticInfo[T,Arg]: Parse[T, Arg, Option[OpticInfo[T]]] = {
     case state @ ParseState(_, infos) => (Right(infos.headOption), state)
   }
 
-  def getLastParseInfoOrElse[T,Arg](orElse: => GogglesError[T]): Parse[T, Arg, ParseInfo[T]] = {
+  def getLastOpticInfoOrElse[T,Arg](orElse: => GogglesError[T]): Parse[T, Arg, OpticInfo[T]] = {
     case state @ ParseState(_, info :: _) => (Right(info), state)
     case state @ ParseState(_, Nil) => (Left(orElse), state)
   }
 
-  def storeParseInfo[T,Arg](info: ParseInfo[T]): Parse[T, Arg, Unit] = {
+  def storeOpticInfo[T,Arg](info: OpticInfo[T]): Parse[T, Arg, Unit] = {
     case ParseState(args, infos) => (Right(()), ParseState(args, info :: infos))
   }
 

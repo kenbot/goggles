@@ -1,10 +1,12 @@
-package goggles.macros
+package goggles.macros.errors
+
+import goggles.macros._
 
 import scala.reflect.api.Universe
 
 object ErrorMessages {
 
-  def message(error: GogglesError[Universe#Type], mode: DslMode, info: List[ParseInfo[Universe#Type]]): String = {
+  def message(error: GogglesError[Universe#Type], mode: DslMode, info: List[OpticInfo[Universe#Type]]): String = {
 
     def getSyntaxErrorMessage(e: SyntaxError): String = {
       def usage = mode match {
@@ -33,7 +35,7 @@ object ErrorMessages {
     }
 
     def getMacroUserErrorMessage(e: MacroUserError[Universe#Type]): String = {
-      def userError(msg: String) = msg
+      def userError(msg: String) = msg + "\n" + TypeTableErrors.message(mode, info)
 
       e match {
         case NameNotFound(name, sourceType) => userError(s"$sourceType doesn't have a '$name' method")
@@ -42,7 +44,7 @@ object ErrorMessages {
         case NameHasMultiParamLists(name, sourceType) => userError(s"'$name' method on $sourceType is not a valid getter; it has multiple parameter lists")
         case InterpNotAnOptic(actualType) => userError(s"Interpolated value must be an optic, one of monocle.{Fold, Getter, Setter, Traversal, Optional, Prism, Lens, Iso}; found: $actualType")
         case WrongKindOfOptic(from, to) => userError(s"Composition from ${from.article} ${from.monoTypeName} to ${to.article} ${to.monoTypeName} is not permitted.")
-        case TypesDontMatch(expectedType, actualType) => userError(s"The types of consecutive sections need to line up, but $actualType doesn't match $expectedType")
+        case TypesDontMatch(expectedType, actualType) => userError(s"The types of consecutive sections don't match.\n found   : $actualType\n required: $expectedType")
         case ImplicitEachNotFound(sourceType) => userError(s"No implicit monocle.function.Each[$sourceType, _] found to support '*' traversal")
         case ImplicitPossibleNotFound(sourceType) => userError(s"No implicit monocle.function.Possible[$sourceType, _] found to support '?' selection")
         case ImplicitIndexNotFound(sourceType, indexType) => userError(s"No implicit monocle.function.Index[$sourceType, $indexType, _] found to support '[]' indexing")
@@ -60,7 +62,7 @@ object ErrorMessages {
         s"$msg Please consider filing an issue on Github."
 
       e match {
-        case ParseInfoNotFound(label) => internalError(s"The macro internally failed to track type information at '$label'.")
+        case OpticInfoNotFound(label) => internalError(s"The macro internally failed to track type information at '$label'.")
         case UnexpectedEachStructure => internalError("The macro internally failed to parse monocle.function.Each structure.")
         case UnexpectedPossibleStructure => internalError("The macro internally failed to parse monocle.function.Possible structure.")
         case UnexpectedIndexStructure(sourceType, indexType) => internalError(s"The macro internally failed to parse monocle.function.Index[$sourceType, $indexType, _] structure.")

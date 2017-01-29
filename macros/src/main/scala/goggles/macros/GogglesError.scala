@@ -35,7 +35,7 @@ case class CopyMethodLacksNamedArgument[T](name: String, sourceType: T) extends 
 case class CopyMethodLacksParameterDefaults[T](name: String, sourceType: T, argsWithNoDefault: List[String]) extends MacroUserError[T]
 
 sealed trait MacroInternalError[+T] extends GogglesError[T]
-case class ParseInfoNotFound(label: String) extends MacroInternalError[Nothing]
+case class OpticInfoNotFound(label: String) extends MacroInternalError[Nothing]
 case object UnexpectedEachStructure extends MacroInternalError[Nothing]
 case object UnexpectedPossibleStructure extends MacroInternalError[Nothing]
 case class UnexpectedIndexStructure[T](sourceType: T, indexType: T) extends MacroInternalError[T]

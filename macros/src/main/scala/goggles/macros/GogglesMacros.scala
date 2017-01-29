@@ -1,5 +1,7 @@
 package goggles.macros
 
+import goggles.macros.errors.ErrorMessages
+
 import scala.reflect.macros.whitebox
 
 
@@ -18,7 +20,7 @@ object GogglesMacros {
   }
 
   private def handleResult(c: whitebox.Context)(
-    result: (Either[GogglesError[c.Type], c.Tree], List[ParseInfo[c.Type]]), mode: DslMode): c.Tree = {
+    result: (Either[GogglesError[c.Type], c.Tree], List[OpticInfo[c.Type]]), mode: DslMode): c.Tree = {
 
     result match {
       case (Right(tree), _) => tree
