@@ -35,7 +35,13 @@ object ErrorMessages {
     }
 
     def getMacroUserErrorMessage(e: MacroUserError[Universe#Type]): String = {
-      def userError(msg: String) = msg + "\n" + TypeTableErrors.message(mode, info)
+      def userError(msg: String) = {
+        val opticTable = mode match {
+          case DslMode.Lens => TypeTableErrors.lensMessage(info)
+          case DslMode.Get | DslMode.Set => TypeTableErrors.appliedMessage(info)
+        }
+        s"$msg \n$opticTable"
+      }
 
       e match {
         case NameNotFound(name, sourceType) => userError(s"$sourceType doesn't have a '$name' method")

@@ -187,7 +187,7 @@ object MacroInterpreter {
           opticType <- getOpticTypeFromArg(arg.actualType)
           io <- getInputOutputTypes(arg.actualType, opticType)
           (inType, outType) = io
-          _ <- storeOpticInfo(s".$${${show(arg.tree)}}", inType, outType, opticType)
+          _ <- storeOpticInfo(s".$$arg", inType, outType, opticType)
         } yield arg.tree
       }
 
@@ -254,7 +254,7 @@ object MacroInterpreter {
           }
         }
 
-        val label = s"[${show(i)}]"
+        val label = s"[$$i]"
         for {
           sourceType <- getLastTargetType(label)
           untypedTree = q"implicitly[_root_.monocle.function.Index[$sourceType,$indexType,_]]"

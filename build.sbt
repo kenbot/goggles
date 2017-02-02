@@ -2,6 +2,7 @@ scalaVersion := "2.12.1"
 
 name := "Goggles"
 version := "0.1"
+organization := "com.github.kenbot"
 
 scalaVersion in ThisBuild := "2.12.1"
 run := run in Compile in core
@@ -34,6 +35,7 @@ lazy val core = (project in file("core")).
   settings(
     libraryDependencies ++= monocleDeps,
     libraryDependencies ++= specs2Deps,
+    moduleName := "goggles-core",
     scalacOptions += "-language:experimental.macros"
   )
 
