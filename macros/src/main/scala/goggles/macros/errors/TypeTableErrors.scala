@@ -21,7 +21,6 @@ object TypeTableErrors {
   }
 
   def appliedMessage(infos: List[OpticInfo]): String = {
-
     val sectionsColumn = Column("Sections", infos.map(_.label))
 
     infos match {
@@ -49,7 +48,11 @@ object TypeTableErrors {
       if (str.contains("=>")) s"(${str.replace("=>", "⇒")})"
       else str
 
-    clarifyFunctionArrows(removeLeadingArrow(t.toString).trim)
+    val args = t.typeArgs
+    val argsString = if (args.nonEmpty) args.map(typeString).mkString("[", ",", "]")
+                     else ""
+    val rawTypeString = s"${t.typeSymbol.name}$argsString"
+    clarifyFunctionArrows(removeLeadingArrow(rawTypeString).trim)
   }
 
   private def opticString(info: OpticInfo): String = {
