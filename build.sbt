@@ -6,7 +6,6 @@ organization := "com.github.kenbot"
 
 scalaVersion in ThisBuild := "2.12.1"
 run := run in Compile in core
-scalacOptions += "-Yrangepos"
 
 resolvers += Resolver.sonatypeRepo("releases")
 resolvers += Resolver.sonatypeRepo("snapshots")
@@ -15,7 +14,7 @@ lazy val macros = (project in file("macros")).settings(
   libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
   libraryDependencies += "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
   libraryDependencies ++= specs2Deps,
-  scalacOptions in Test += "-Yrangepos",
+  scalacOptions += "-Yrangepos",
   scalacOptions += "-language:experimental.macros"
 )
 
@@ -36,6 +35,7 @@ lazy val core = (project in file("core")).
     libraryDependencies ++= monocleDeps,
     libraryDependencies ++= specs2Deps,
     moduleName := "goggles-core",
+    scalacOptions += "-Yrangepos",
     scalacOptions += "-language:experimental.macros"
   )
 

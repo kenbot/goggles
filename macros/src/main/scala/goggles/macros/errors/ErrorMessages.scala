@@ -26,8 +26,8 @@ object ErrorMessages {
         case InvalidAfterDot(tok) => syntaxError("expecting a field name or interpolated optic after a dot, found: '" + tok + "'")
         case NonInterpolatedStart(tok) => syntaxError("expecting an interpolated value at the start, found: " + tok)
         case UnexpectedCloseBracket => syntaxError("unexpected \"]\"")
-        case EndingDot => syntaxError("a dot can't be in the last position")
-        case NoIndexSupplied => syntaxError("expecting a supplied index value inside brackets [...]")
+        case EndingDot => syntaxError("a dot must be followed either by a case class-like field or an interpolated optic")
+        case NoIndexSupplied => syntaxError("expecting a supplied index value inside brackets []")
         case InvalidIndexSupplied(tok) => syntaxError("expecting an integer literal or interpolated index, found: \"" + tok + "\"")
         case UnclosedOpenBracket => syntaxError("bracket was never closed")
         case VerbatimIndexNotInt(expr) => syntaxError("verbatim index needs to be a positive int, eg. [0] or [1]")
@@ -89,10 +89,10 @@ object ErrorMessages {
     """
       |    Goggles usage (get):
       |      Interpolate a source object $someObj, followed by one or more of:
-      |        .someName   - Named case class field
+      |        .someName   - Named case class-like field
       |        .$someOptic - Interpolated Monocle optic (Fold, Getter, Setter, Traversal, Optional, Prism, Lens or Iso)
-      |        [0]         - Integer index, using monocle.function.Index (if using Int indices)
-      |        [$n]        - Interpolated index value, using implicit monocle.function.Index
+      |        [0]         - Integer index, using monocle.function.Index[Int, _]
+      |        [$foo]      - Interpolated index value, using implicit monocle.function.Index[Foo, _]
       |        *           - Traverses over each value, using implicit monocle.function.Each
       |        ?           - Selects a value that might not exist, using implicit monocle.function.Possible
       |
@@ -105,10 +105,10 @@ object ErrorMessages {
     """
       |    Goggles usage (set):
       |      Interpolate a source object $someObj, followed by one or more of:
-      |        .someName   - Named case class field
+      |        .someName   - Named case class-like field
       |        .$someOptic - Interpolated Monocle optic (Fold, Getter, Setter, Traversal, Optional, Prism, Lens or Iso)
-      |        [0]         - Integer index, using monocle.function.Index (if using Int indices)
-      |        [$n]        - Interpolated index value, using implicit monocle.function.Index
+      |        [0]         - Integer index, using monocle.function.Index[Int, _]
+      |        [$foo]      - Interpolated index value, using implicit monocle.function.Index[Foo, _]
       |        *           - Traverses over each value, using implicit monocle.function.Each
       |        ?           - Selects a value that might not exist, using implicit monocle.function.Possible
       |
@@ -125,10 +125,10 @@ object ErrorMessages {
     """
       |    Goggles usage (lens):
       |      Interpolate an existing Monocle optic, followed by one or more of:
-      |        .someName   - Named case class field
+      |        .someName   - Named case class-like field
       |        .$someOptic - Interpolated Monocle optic (Fold, Getter, Setter, Traversal, Optional, Prism, Lens or Iso)
-      |        [0]         - Integer index, using monocle.function.Index (if using Int indices)
-      |        [$n]        - Interpolated index value, using implicit monocle.function.Index
+      |        [0]         - Integer index, using monocle.function.Index[Int, _]
+      |        [$foo]      - Interpolated index value, using implicit monocle.function.Index[Foo, _]
       |        *           - Traverses over each value, using implicit monocle.function.Each
       |        ?           - Selects a value that might not exist, using implicit monocle.function.Possible
       |

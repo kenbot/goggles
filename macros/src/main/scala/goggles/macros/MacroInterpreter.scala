@@ -292,7 +292,7 @@ object MacroInterpreter {
         }
         composed <- Parse.fromOption(nextOpticType,
                                      WrongKindOfOptic(lastInfo.fold(opticType)(_.compositeOpticType), opticType))
-        _ <- Parse.storeOpticInfo(OpticInfo(name, inType, outType, opticType, composed))
+        _ <- Parse.storeOpticInfo(OpticInfo(name, inType.resultType, outType.resultType, opticType, composed))
       } yield ()
     }
 

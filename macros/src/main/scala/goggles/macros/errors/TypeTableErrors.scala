@@ -40,10 +40,6 @@ object TypeTableErrors {
   }
 
   private def typeString(t: Universe#Type): String = {
-    def removeLeadingArrow(str: String) =
-      if (str.substring(0,3) == "=> ") str.substring(3)
-      else str
-
     def clarifyFunctionArrows(str: String) =
       if (str.contains("=>")) s"(${str.replace("=>", "⇒")})"
       else str
@@ -51,8 +47,9 @@ object TypeTableErrors {
     val args = t.typeArgs
     val argsString = if (args.nonEmpty) args.map(typeString).mkString("[", ",", "]")
                      else ""
+
     val rawTypeString = s"${t.typeSymbol.name}$argsString"
-    clarifyFunctionArrows(removeLeadingArrow(rawTypeString).trim)
+    clarifyFunctionArrows(rawTypeString.trim)
   }
 
   private def opticString(info: OpticInfo): String = {
