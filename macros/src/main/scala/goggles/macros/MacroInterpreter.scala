@@ -108,6 +108,14 @@ object MacroInterpreter {
       else Parse.pure(typed)
     }
 
+    def getArgumentText(tree: c.Tree): String = {
+      val pos = tree.pos
+      val src = new String(pos.source.content)
+      val label = src.substring(pos.start, pos.end)
+      if (label.forall(_.isUnicodeIdentifierPart)) label
+      else s"{$label}"
+    }
+
     def interpretLensExpr(lexpr: LensExpr): Interpret[c.Tree] = {
 
       def patternMatchOrElse[A, R](a: A, orElse: => GogglesError[c.Type])(pf: PartialFunction[A,R]): Interpret[R] =
@@ -187,7 +195,8 @@ object MacroInterpreter {
           opticType <- getOpticTypeFromArg(arg.actualType)
           io <- getInputOutputTypes(arg.actualType, opticType)
           (inType, outType) = io
-          _ <- storeOpticInfo(s".$$arg", inType, outType, opticType)
+          argLabel = getArgumentText(arg.tree)
+          _ <- storeOpticInfo(s".$$$argLabel", inType, outType, opticType)
         } yield arg.tree
       }
 
@@ -240,7 +249,7 @@ object MacroInterpreter {
         } yield q"_root_.monocle.function.Possible.possible"
       }
 
-      def interpretIndex(i: c.Tree, indexType: c.Type): Interpret[c.Tree] = {
+      def interpretIndex(i: c.Tree, label: String, indexType: c.Type): Interpret[c.Tree] = {
         object ImplicitIndexTargetType {
           object InnerType {
             def unapply(t: c.Tree): Option[c.Type] = t.tpe match {
@@ -254,7 +263,6 @@ object MacroInterpreter {
           }
         }
 
-        val label = s"[$$i]"
         for {
           sourceType <- getLastTargetType(label)
           untypedTree = q"implicitly[_root_.monocle.function.Index[$sourceType,$indexType,_]]"
@@ -266,13 +274,16 @@ object MacroInterpreter {
         } yield q"_root_.monocle.function.Index.index($i)"
       }
 
+
       lexpr match {
         case RefExpr(NamedLensRef(name)) => interpretNamedRefGetterSetter(name)
         case RefExpr(InterpLensRef) => interpretInterpolatedLens
         case EachExpr => interpretEach
         case OptExpr => interpretPossible
-        case IndexedExpr(LiteralIndex(i)) => interpretIndex(q"$i", typeOf[Int])
-        case IndexedExpr(InterpIndex) => Parse.popArg.flatMap(i => interpretIndex(i.tree, i.actualType))
+        case IndexedExpr(LiteralIndex(i)) => interpretIndex(q"$i", s"[$i]", typeOf[Int])
+        case IndexedExpr(InterpIndex) => Parse.popArg.flatMap { i =>
+          interpretIndex(i.tree, s"[$$${getArgumentText(i.tree)}]", i.actualType)
+        }
       }
     }
 
@@ -299,7 +310,8 @@ object MacroInterpreter {
     def interpretSource: Interpret[c.Tree] = {
       for {
         arg <- Parse.popArg[c.Type, c.Expr[Any]]
-        _ <- Parse.storeOpticInfo(OpticInfo(s"$$arg", typeOf[Unit], arg.actualType, IsoType, IsoType))
+        argLabel = getArgumentText(arg.tree)
+        _ <- Parse.storeOpticInfo(OpticInfo(s"$$$argLabel", typeOf[Unit], arg.actualType, IsoType, IsoType))
       } yield q"_root_.goggles.macros.MacroInterpreter.const($arg)"
     }
 
