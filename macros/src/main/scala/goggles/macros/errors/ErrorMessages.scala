@@ -21,9 +21,9 @@ object ErrorMessages {
       e match {
         case UnrecognisedChar(char) => syntaxError(s"unrecognised character: $char")
         case EmptyError => syntaxError("expression is empty.")
-        case NameWithNoDot(name) => syntaxError("a dot is required before a field name: " + name)
+        case NameWithNoDot(name) => syntaxError(s"a dot is required before a field name: $name")
         case InterpOpticWithNoDot => syntaxError("a dot is required before an interpolated optic")
-        case InvalidAfterDot(tok) => syntaxError("expecting a field name or interpolated optic after a dot, found: '" + tok + "'")
+        case InvalidAfterDot(tok) => syntaxError(s"expecting a field name or interpolated optic after a dot, found: '" + tok + "'")
         case NonInterpolatedStart(tok) => syntaxError("expecting an interpolated value at the start, found: " + tok)
         case UnexpectedCloseBracket => syntaxError("unexpected \"]\"")
         case EndingDot => syntaxError("a dot must be followed either by a case class-like field or an interpolated optic")
@@ -36,10 +36,7 @@ object ErrorMessages {
 
     def getMacroUserErrorMessage(e: MacroUserError[Universe#Type]): String = {
       def userError(msg: String) = {
-        val opticTable = mode match {
-          case DslMode.Lens => TypeTableErrors.lensMessage(info)
-          case DslMode.Get | DslMode.Set => TypeTableErrors.appliedMessage(info)
-        }
+        val opticTable = TypeTableErrors.table(mode, e, info).render
         s"$msg \n$opticTable"
       }
 
@@ -48,12 +45,12 @@ object ErrorMessages {
         case NameNotAMethod(name, sourceType) => userError(s"$sourceType member '$name' is not a method")
         case NameHasArguments(name, sourceType) => userError(s"'$name' method on $sourceType is not a valid getter; it has arguments")
         case NameHasMultiParamLists(name, sourceType) => userError(s"'$name' method on $sourceType is not a valid getter; it has multiple parameter lists")
-        case InterpNotAnOptic(actualType) => userError(s"Interpolated value must be an optic, one of monocle.{Fold, Getter, Setter, Traversal, Optional, Prism, Lens, Iso}; found: $actualType")
-        case WrongKindOfOptic(from, to) => userError(s"Composition from ${from.article} ${from.monoTypeName} to ${to.article} ${to.monoTypeName} is not permitted.")
-        case TypesDontMatch(expectedType, actualType) => userError(s"The types of consecutive sections don't match.\n found   : $actualType\n required: $expectedType")
-        case ImplicitEachNotFound(sourceType) => userError(s"No implicit monocle.function.Each[$sourceType, _] found to support '*' traversal")
-        case ImplicitPossibleNotFound(sourceType) => userError(s"No implicit monocle.function.Possible[$sourceType, _] found to support '?' selection")
-        case ImplicitIndexNotFound(sourceType, indexType) => userError(s"No implicit monocle.function.Index[$sourceType, $indexType, _] found to support '[]' indexing")
+        case InterpNotAnOptic(name, actualType) => userError(s"Interpolated value $name must be an optic; one of monocle.{Fold, Getter, Setter, Traversal, Optional, Prism, Lens, Iso}; found: $actualType")
+        case WrongKindOfOptic(name, sourceType, targetType, from, to) => userError(s"Composition from ${from.article} ${from.monoTypeName} to ${to.article} ${to.monoTypeName} is not permitted in $name")
+        case TypesDontMatch(name, sourceType, targetType, expectedType, actualType) => userError(s"The types of consecutive sections don't match.\n found   : $actualType\n required: $expectedType")
+        case ImplicitEachNotFound(name, sourceType) => userError(s"No implicit monocle.function.Each[$sourceType, _] found to support '*' traversal")
+        case ImplicitPossibleNotFound(name, sourceType) => userError(s"No implicit monocle.function.Possible[$sourceType, _] found to support '?' selection")
+        case ImplicitIndexNotFound(name, sourceType, indexType) => userError(s"No implicit monocle.function.Index[$sourceType, $indexType, _] found to support '[]' indexing")
         case CopyMethodNotFound(name, sourceType) => userError(s"Can't update '$name', because no 'copy' method found on $sourceType")
         case CopyMethodNotAMethod(name, sourceType) => userError(s"Can't update '$name', because the $sourceType 'copy' member is not a method.")
         case CopyMethodHasMultiParamLists(name, sourceType) => userError(s"Can't update '$name', because the $sourceType 'copy' method has multiple parameter lists.")
@@ -65,7 +62,7 @@ object ErrorMessages {
 
     def getMacroInternalErrorMessage(e: MacroInternalError[Universe#Type]): String = {
       def internalError(msg: String): String =
-        s"$msg Please consider filing an issue on Github."
+        s"$msg \nPlease consider filing an issue at https://github.com/kenbot/goggles/issues."
 
       e match {
         case OpticInfoNotFound(label) => internalError(s"The macro internally failed to track type information at '$label'.")

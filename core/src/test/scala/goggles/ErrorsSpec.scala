@@ -108,38 +108,38 @@ class ErrorsSpec extends Specification with ScalaCheck {
     testGet"${new HasMultiParamMethod}.bogus" === Left(NameHasMultiParamLists("bogus", "goggles.HasMultiParamMethod"))
 
   def notAnOptic = {
-    testGet"$myBasket.${new A}" === Left(InterpNotAnOptic("goggles.A"))
+    testGet"$myBasket.${new A}" === Left(InterpNotAnOptic("${new A}", "goggles.A"))
   }
 
   def wrongKindOfOptic = {
-    val setter = Setter[B,C](_ => _ => new B)
     val getter = Getter[A,B](_ => new B)
+    val setter = Setter[B,C](_ => _ => new B)
 
-    testGet"${new A}.$getter.$setter" === Left(WrongKindOfOptic(GetterType, SetterType))
+    testGet"${new A}.$getter.$setter" === Left(WrongKindOfOptic(".$setter", "goggles.B", "goggles.C", GetterType, SetterType))
   }
 
   def typesDontMatch = {
     val aToB = Getter[A,B](_ => new B)
     val cToD = Getter[C,D](_ => new D)
 
-    testGet"${new A}.$aToB.$cToD" === Left(TypesDontMatch("goggles.B", "goggles.C"))
+    testGet"${new A}.$aToB.$cToD" === Left(TypesDontMatch(".$cToD", "goggles.C", "goggles.D", "goggles.B", "goggles.C"))
   }
 
   def noEach = {
-    testGet"${new A}*" === Left(ImplicitEachNotFound("goggles.A"))
+    testGet"${new A}*" === Left(ImplicitEachNotFound("*", "goggles.A"))
   }
 
   def noPossible = {
-    testGet"${new A}?" === Left(ImplicitPossibleNotFound("goggles.A"))
+    testGet"${new A}?" === Left(ImplicitPossibleNotFound("?", "goggles.A"))
   }
 
   def noIndex = {
-    testGet"${new A}[0]" === Left(ImplicitIndexNotFound("goggles.A", "Int"))
+    testGet"${new A}[0]" === Left(ImplicitIndexNotFound("[0]", "goggles.A", "Int"))
   }
 
   def wrongIndexType = {
     val i = "a"
-    testGet"${List(1,2,3)}[$i]" === Left(ImplicitIndexNotFound("List[Int]", "String"))
+    testGet"${List(1,2,3)}[$i]" === Left(ImplicitIndexNotFound("[$i]", "List[Int]", "String"))
   }
 
   def copyMethodNotFound =

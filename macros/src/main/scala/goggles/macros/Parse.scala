@@ -2,20 +2,6 @@ package goggles.macros
 
 import scalaz._, Scalaz._
 
-case class OpticInfo[+T](label: String, sourceType: T, targetType: T, opticType: OpticType, compositeOpticType: OpticType) {
-
-  def pretty: String = {
-    val opticString =
-      if (opticType == compositeOpticType) s"(${opticType.monoTypeName})"
-      else s"(${opticType.monoTypeName}, returning ${compositeOpticType.monoTypeName})"
-
-    def getTypeString(t: T) =
-      if (t.toString.startsWith("=>")) s"($t)"
-      else t.toString
-
-    s"$label : ${getTypeString(sourceType)} => ${getTypeString(targetType)} $opticString"
-  }
-}
 case class ParseState[T,Arg](args: List[Arg], infos: List[OpticInfo[T]])
 
 trait Parse[T, Arg, A] {

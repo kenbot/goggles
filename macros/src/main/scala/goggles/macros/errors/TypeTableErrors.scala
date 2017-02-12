@@ -1,45 +1,70 @@
 package goggles.macros.errors
 
 
-import scala.reflect.api.Universe
+import goggles.macros.DslMode.{Lens, Set, Get}
+import goggles.macros._
 
 object TypeTableErrors {
+  type Type = scala.reflect.api.Universe#Type
 
-  type OpticInfo = goggles.macros.OpticInfo[Universe#Type]
+  def table(mode: DslMode, typedError: MacroUserError[Type], typedInfos: List[OpticInfo[Type]]): Table = {
+    val infos: Vector[OpticInfo[String]] = typedInfos.map(_.map(typeString)).toVector
+    val errorInfo = getErrorInfo(typedError.map(typeString))
+    val sectionsColumn = Column("Sections", infos.map(_.label) ++ errorInfo.map(_.label))
 
+    def lensTable: Table = {
+      val col2a = Column("Types", infos.map(_.sourceType) ++ errorInfo.map(_.sourceType))
+      val col2b = Column("", infos.map(_.targetType) ++ errorInfo.map(_.targetType))
 
-  def lensMessage(infos: List[OpticInfo]): String = {
-    val sectionsColumn = Column("Sections", infos.map(_.label))
+      val typesColumn = col2a.merge(col2b, "⇒")
+      val opticsColumn = Column("Optics", infos.map(opticString) ++ errorInfo.map(_.opticType))
 
-    val col2a = Column("Types", infos.map(i => typeString(i.sourceType)))
-    val col2b = Column("", infos.map(i => typeString(i.targetType)))
+      Table(sectionsColumn, typesColumn, opticsColumn)
+    }
 
-    val typesColumn = col2a.merge(col2b, "⇒")
-    val opticsColumn = Column("Optics", infos.map(opticString))
+    def appliedTable: Table = {
+      infos match {
+        case Vector() => Table.empty
+        case sourceInfo +: opticInfos =>
+          val col2a = Column("", opticInfos.map(_.sourceType) ++ errorInfo.map(_.sourceType))
+          val col2b = Column("", opticInfos.map(_.targetType) ++ errorInfo.map(_.targetType))
+          val col2 = col2a.merge(col2b, "⇒")
 
-    Column.renderTable(sectionsColumn, typesColumn, opticsColumn)
-  }
+          val typesColumn = Column("Types", sourceInfo.targetType +: col2.rawContent)
+          val opticsColumn = Column("Optics", ("" +: opticInfos.map(opticString)) ++ errorInfo.map(_.opticType))
 
-  def appliedMessage(infos: List[OpticInfo]): String = {
-    val sectionsColumn = Column("Sections", infos.map(_.label))
+          Table(sectionsColumn, typesColumn, opticsColumn)
+      }
+    }
 
-    infos match {
-      case Nil => ""
-      case sourceInfo :: opticInfos =>
-        val col2a = Column("", opticInfos.map(i => typeString(i.sourceType)))
-        val col2b = Column("", opticInfos.map(i => typeString(i.targetType)))
-        val col2 = col2a.merge(col2b, "⇒")
-
-        val sourceInfoType = typeString(sourceInfo.targetType)
-
-        val typesColumn = Column("Types", sourceInfoType :: col2.rawContent)
-        val opticsColumn = Column("Optics", "" :: opticInfos.map(opticString))
-
-        Column.renderTable(sectionsColumn, typesColumn, opticsColumn)
+    mode match {
+      case Get | Set => appliedTable
+      case Lens => lensTable
     }
   }
 
-  private def typeString(t: Universe#Type): String = {
+  case class ErrorInfo(label: String, sourceType: String, targetType: String, opticType: String)
+
+  private def getErrorInfo(e: MacroUserError[String]): Option[ErrorInfo] = e match {
+    case NameNotFound(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case NameNotAMethod(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case NameHasArguments(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case NameHasMultiParamLists(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case InterpNotAnOptic(name, _) => Some(ErrorInfo(name, "", "", ""))
+    case WrongKindOfOptic(name, sourceType, targetType, _, to) => Some(ErrorInfo(name, sourceType, targetType, to.monoTypeName))
+    case TypesDontMatch(name, sourceType, targetType, _, _) => None
+    case ImplicitEachNotFound(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case ImplicitPossibleNotFound(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case ImplicitIndexNotFound(name, sourceType, _) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case CopyMethodNotFound(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case CopyMethodNotAMethod(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case CopyMethodHasMultiParamLists(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case CopyMethodHasNoArguments(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case CopyMethodLacksNamedArgument(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
+    case CopyMethodLacksParameterDefaults(name, sourceType, _) => Some(ErrorInfo(name, sourceType, "???", ""))
+  }
+
+  private def typeString(t: Type): String = {
     def clarifyFunctionArrows(str: String) =
       if (str.contains("=>")) s"(${str.replace("=>", "⇒")})"
       else str
@@ -52,7 +77,7 @@ object TypeTableErrors {
     clarifyFunctionArrows(rawTypeString.trim)
   }
 
-  private def opticString(info: OpticInfo): String = {
+  private def opticString[A](info: OpticInfo[A]): String = {
     val o1 = info.opticType
     val o2 = info.compositeOpticType
     if (o1 == o2) o1.monoTypeName

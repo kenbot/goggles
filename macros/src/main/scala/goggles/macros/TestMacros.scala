@@ -6,15 +6,15 @@ import scala.reflect.macros.whitebox
 object TestMacros {
 
   def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.getImpl(c)(args: _*)._1)
+    handleResult(c)(MacroInterpreter.getImpl(c)(args: _*).errorOrTree)
   }
 
   def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.setImpl(c)(args: _*)._1)
+    handleResult(c)(MacroInterpreter.setImpl(c)(args: _*).errorOrTree)
   }
 
   def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.lensImpl(c)(args: _*)._1)
+    handleResult(c)(MacroInterpreter.lensImpl(c)(args: _*).errorOrTree)
   }
 
   private def handleResult(c: whitebox.Context)(
@@ -22,6 +22,7 @@ object TestMacros {
 
     import OpticType._
     import c.universe._
+
 
     implicit val opticTypeLiftable = Liftable[OpticType] {
       case FoldType => q"_root_.goggles.macros.OpticType.FoldType"
@@ -64,12 +65,12 @@ object TestMacros {
       case NameNotAMethod(name, sourceType) => q"_root_.goggles.macros.NameNotAMethod[String]($name, ${typeStr(sourceType)})"
       case NameHasArguments(name, sourceType) => q"_root_.goggles.macros.NameHasArguments[String]($name, ${typeStr(sourceType)})"
       case NameHasMultiParamLists(name, onType) => q"_root_.goggles.macros.NameHasMultiParamLists[String]($name, ${typeStr(onType)})"
-      case InterpNotAnOptic(actualType) => q"_root_.goggles.macros.InterpNotAnOptic[String](${typeStr(actualType)})"
-      case WrongKindOfOptic(from, to) => q"_root_.goggles.macros.WrongKindOfOptic($from, $to)"
-      case TypesDontMatch(expectedType, actualType) => q"_root_.goggles.macros.TypesDontMatch[String](${typeStr(expectedType)}, ${typeStr(actualType)})"
-      case ImplicitEachNotFound(sourceType) => q"_root_.goggles.macros.ImplicitEachNotFound[String](${typeStr(sourceType)})"
-      case ImplicitPossibleNotFound(sourceType) => q"_root_.goggles.macros.ImplicitPossibleNotFound[String](${typeStr(sourceType)})"
-      case ImplicitIndexNotFound(sourceType, indexType) => q"_root_.goggles.macros.ImplicitIndexNotFound[String](${typeStr(sourceType)}, ${typeStr(indexType)})"
+      case InterpNotAnOptic(name, actualType) => q"_root_.goggles.macros.InterpNotAnOptic[String]($name, ${typeStr(actualType)})"
+      case WrongKindOfOptic(name, sourceType, targetType, from, to) => q"_root_.goggles.macros.WrongKindOfOptic($name, ${typeStr(sourceType)}, ${typeStr(targetType)}, $from, $to)"
+      case TypesDontMatch(name, sourceType, targetType, expectedType, actualType) => q"_root_.goggles.macros.TypesDontMatch[String]($name, ${typeStr(sourceType)}, ${typeStr(targetType)}, ${typeStr(expectedType)}, ${typeStr(actualType)})"
+      case ImplicitEachNotFound(name, sourceType) => q"_root_.goggles.macros.ImplicitEachNotFound[String]($name, ${typeStr(sourceType)})"
+      case ImplicitPossibleNotFound(name, sourceType) => q"_root_.goggles.macros.ImplicitPossibleNotFound[String]($name, ${typeStr(sourceType)})"
+      case ImplicitIndexNotFound(name, sourceType, indexType) => q"_root_.goggles.macros.ImplicitIndexNotFound[String]($name, ${typeStr(sourceType)}, ${typeStr(indexType)})"
       case CopyMethodNotFound(name, sourceType) => q"_root_.goggles.macros.CopyMethodNotFound[String]($name, ${typeStr(sourceType)})"
       case CopyMethodNotAMethod(name, sourceType) => q"_root_.goggles.macros.CopyMethodNotAMethod[String]($name, ${typeStr(sourceType)})"
       case CopyMethodHasMultiParamLists(name, sourceType) => q"_root_.goggles.macros.CopyMethodHasMultiParamLists[String]($name, ${typeStr(sourceType)})"

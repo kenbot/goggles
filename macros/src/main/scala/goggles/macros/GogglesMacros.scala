@@ -20,11 +20,11 @@ object GogglesMacros {
   }
 
   private def handleResult(c: whitebox.Context)(
-    result: (Either[GogglesError[c.Type], c.Tree], List[OpticInfo[c.Type]]), mode: DslMode): c.Tree = {
+    result: MacroResult[c.Type, c.Tree], mode: DslMode): c.Tree = {
 
     result match {
-      case (Right(tree), _) => tree
-      case (Left(err), infos) =>
+      case MacroResult(Right(tree), _) => tree
+      case MacroResult(Left(err), infos) =>
         val errMsg = ErrorMessages.message(err, mode, infos)
         c.abort(c.enclosingPosition, errMsg)
     }

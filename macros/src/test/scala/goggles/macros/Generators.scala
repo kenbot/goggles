@@ -9,7 +9,7 @@ object Generators {
   val genColumn: Gen[Column] =
     for {
       heading <- arbitrary[String]
-      rawContent <- arbitrary[List[String]]
+      rawContent <- arbitrary[Vector[String]]
     } yield Column(heading, rawContent)
 
   implicit def arbColumn = Arbitrary(genColumn)

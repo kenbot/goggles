@@ -6,11 +6,12 @@ import monocle._
 import scala.reflect.macros.whitebox
 
 
+
 object MacroInterpreter {
 
   import AST._
 
-  def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): (Either[GogglesError[c.Type], c.Tree], List[OpticInfo[c.Type]]) = {
+  def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): MacroResult[c.Type, c.Tree] = {
     import AST._
     import c.universe._
 
@@ -29,14 +30,14 @@ object MacroInterpreter {
     val finalTree =
       for {
         ast <- Parse.fromEither(errorOrAst)
-        tree <- interpretComposedLens(c)(ast.lens, applied = true)
+        tree <- interpretComposedLens(c)(ast.lens, DslMode.Get)
         getter <- getterExpression(tree)
       } yield getter
 
-    finalTree.eval(args.toList)
+    MacroResult.tupled(finalTree.eval(args.toList))
   }
 
-  def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): (Either[GogglesError[c.Type], c.Tree], List[OpticInfo[c.Type]]) = {
+  def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): MacroResult[c.Type, c.Tree] = {
     import AST._
     import c.universe._
 
@@ -57,14 +58,14 @@ object MacroInterpreter {
     val finalTree: Interpret[c.Tree] =
       for {
         ast <- Parse.fromEither(errorOrAst)
-        tree <- interpretComposedLens(c)(ast.lens, applied = true)
+        tree <- interpretComposedLens(c)(ast.lens, DslMode.Set)
         setter <- setterExpression(tree)
       } yield q"(new _root_.goggles.macros.MonocleModifyOps($setter))"
 
-    finalTree.eval(args.toList)
+    MacroResult.tupled(finalTree.eval(args.toList))
   }
 
-  def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): (Either[GogglesError[c.Type], c.Tree], List[OpticInfo[c.Type]]) = {
+  def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): MacroResult[c.Type, c.Tree] = {
 
     type Interpret[A] = Parse[c.Type, c.Expr[Any], A]
 
@@ -74,13 +75,13 @@ object MacroInterpreter {
     val finalTree: Interpret[c.Tree] =
       for {
         ast <- Parse.fromEither(errorOrAst)
-        tree <- interpretComposedLens(c)(ast, applied = false)
+        tree <- interpretComposedLens(c)(ast, DslMode.Lens)
       } yield tree
 
-    finalTree.eval(args.toList)
+    MacroResult.tupled(finalTree.eval(args.toList))
   }
 
-  private def interpretComposedLens(c: whitebox.Context)(composedLens: ComposedLens, applied: Boolean): Parse[c.Type, c.Expr[Any], c.Tree] = {
+  private def interpretComposedLens(c: whitebox.Context)(composedLens: ComposedLens, mode: DslMode): Parse[c.Type, c.Expr[Any], c.Tree] = {
     import c.universe._
 
     type Interpret[A] = Parse[c.Type, c.Expr[Any], A]
@@ -92,7 +93,7 @@ object MacroInterpreter {
           nextLensCode <- interpretLensExpr(lensExpr)
           thisInfo <- getLastOpticInfo(show(nextLensCode))
           tree = q"($codeSoFar).${TermName(thisInfo.opticType.composeVerb)}($nextLensCode)"
-          checkedTree <- typeCheckOrElse(tree, TypesDontMatch(lastInfo.targetType, thisInfo.sourceType))
+          checkedTree <- typeCheckOrElse(tree, TypesDontMatch(thisInfo.label, thisInfo.sourceType, thisInfo.targetType, lastInfo.targetType, thisInfo.sourceType))
         } yield checkedTree
       }
 
@@ -108,12 +109,12 @@ object MacroInterpreter {
       else Parse.pure(typed)
     }
 
-    def getArgumentText(tree: c.Tree): String = {
+    def getArgLabel(tree: c.Tree): String = {
       val pos = tree.pos
       val src = new String(pos.source.content)
       val label = src.substring(pos.start, pos.end)
-      if (label.forall(_.isUnicodeIdentifierPart)) label
-      else s"{$label}"
+      if (label.forall(_.isUnicodeIdentifierPart)) s"$$$label"
+      else s"$${$label}"
     }
 
     def interpretLensExpr(lexpr: LensExpr): Interpret[c.Tree] = {
@@ -126,6 +127,8 @@ object MacroInterpreter {
         getLastOpticInfo(name).map(_.targetType)
 
       def interpretNamedRefGetterSetter(name: String): Interpret[c.Tree] = {
+        val label = s".$name"
+
         def validateGetter(sourceType: c.Type): Interpret[c.Type] = {
           val getter = sourceType.member(TermName(name))
           if (getter == NoSymbol) Parse.raiseError(NameNotFound(name, sourceType))
@@ -165,7 +168,7 @@ object MacroInterpreter {
       }
 
       def interpretInterpolatedLens: Interpret[c.Tree] = {
-        def getOpticTypeFromArg(actualType: c.Type): Interpret[OpticType] = {
+        def getOpticTypeFromArg(argLabel: String, actualType: c.Type): Interpret[OpticType] = {
           actualType.erasure.typeSymbol.name.toString match {
             case "Fold" => Parse.pure(OpticType.FoldType)
             case "Getter" => Parse.pure(OpticType.GetterType)
@@ -175,7 +178,7 @@ object MacroInterpreter {
             case "PPrism" => Parse.pure(OpticType.PrismType)
             case "PLens" => Parse.pure(OpticType.LensType)
             case "PIso" => Parse.pure(OpticType.IsoType)
-            case _ => Parse.raiseError(InterpNotAnOptic(actualType))
+            case _ => Parse.raiseError(InterpNotAnOptic(argLabel, actualType))
           }
         }
 
@@ -192,11 +195,11 @@ object MacroInterpreter {
 
         for {
           arg <- Parse.popArg[c.Type, c.Expr[Any]]
-          opticType <- getOpticTypeFromArg(arg.actualType)
+          argLabel = getArgLabel(arg.tree)
+          opticType <- getOpticTypeFromArg(argLabel, arg.actualType)
           io <- getInputOutputTypes(arg.actualType, opticType)
           (inType, outType) = io
-          argLabel = getArgumentText(arg.tree)
-          _ <- storeOpticInfo(s".$$$argLabel", inType, outType, opticType)
+          _ <- storeOpticInfo(s".$argLabel", inType, outType, opticType)
         } yield arg.tree
       }
 
@@ -214,14 +217,15 @@ object MacroInterpreter {
           }
         }
 
+        val name = "*"
         for {
           sourceType <- getLastTargetType("*")
           untypedTree = q"implicitly[_root_.monocle.function.Each[$sourceType, _]]"
-          typedTree <- typeCheckOrElse(untypedTree, ImplicitEachNotFound(sourceType))
+          typedTree <- typeCheckOrElse(untypedTree, ImplicitEachNotFound(name, sourceType))
           targetType <- patternMatchOrElse(typedTree, UnexpectedEachStructure) {
             case ImplicitEachTargetType(nextType) => nextType
           }
-          _ <- storeOpticInfo("*", sourceType, targetType, TraversalType)
+          _ <- storeOpticInfo(name, sourceType, targetType, TraversalType)
         } yield q"_root_.monocle.function.Each.each"
       }
 
@@ -238,10 +242,11 @@ object MacroInterpreter {
             case _ => None
           }
         }
+        val name = "?"
         for {
-          sourceType <- getLastTargetType("?")
+          sourceType <- getLastTargetType(name)
           untypedTree = q"implicitly[_root_.monocle.function.Possible[$sourceType, _]]"
-          typedTree <- typeCheckOrElse(untypedTree, ImplicitPossibleNotFound(sourceType))
+          typedTree <- typeCheckOrElse(untypedTree, ImplicitPossibleNotFound(name, sourceType))
           targetType <- patternMatchOrElse(typedTree, UnexpectedPossibleStructure) {
             case ImplicitPossibleTargetType(nextType) => nextType
           }
@@ -266,7 +271,7 @@ object MacroInterpreter {
         for {
           sourceType <- getLastTargetType(label)
           untypedTree = q"implicitly[_root_.monocle.function.Index[$sourceType,$indexType,_]]"
-          typedTree <- typeCheckOrElse(untypedTree, ImplicitIndexNotFound(sourceType, indexType))
+          typedTree <- typeCheckOrElse(untypedTree, ImplicitIndexNotFound(label, sourceType, indexType))
           targetType <- patternMatchOrElse(typedTree, UnexpectedIndexStructure(sourceType, indexType)) {
             case ImplicitIndexTargetType(nextType) => nextType
           }
@@ -282,7 +287,7 @@ object MacroInterpreter {
         case OptExpr => interpretPossible
         case IndexedExpr(LiteralIndex(i)) => interpretIndex(q"$i", s"[$i]", typeOf[Int])
         case IndexedExpr(InterpIndex) => Parse.popArg.flatMap { i =>
-          interpretIndex(i.tree, s"[$$${getArgumentText(i.tree)}]", i.actualType)
+          interpretIndex(i.tree, s"[${getArgLabel(i.tree)}]", i.actualType)
         }
       }
     }
@@ -294,29 +299,29 @@ object MacroInterpreter {
       }
     }
 
-    def storeOpticInfo(name: String, inType: c.Type, outType: c.Type, opticType: OpticType): Interpret[Unit] = {
+    def storeOpticInfo(label: String, sourceType: c.Type, targetType: c.Type, opticType: OpticType): Interpret[Unit] = {
       for {
         lastInfo <- Parse.getLastOpticInfo[c.Type, c.Expr[Any]]
         nextOpticType = lastInfo match {
           case Some(info) => info.compositeOpticType.compose(opticType)
           case None => Some(opticType)
         }
+        fromOptic = lastInfo.fold(opticType)(_.compositeOpticType)
         composed <- Parse.fromOption(nextOpticType,
-                                     WrongKindOfOptic(lastInfo.fold(opticType)(_.compositeOpticType), opticType))
-        _ <- Parse.storeOpticInfo(OpticInfo(name, inType.resultType, outType.resultType, opticType, composed))
+                                     WrongKindOfOptic(label, sourceType, targetType, fromOptic, opticType))
+        _ <- Parse.storeOpticInfo(OpticInfo(label, sourceType.resultType, targetType.resultType, opticType, composed))
       } yield ()
     }
 
     def interpretSource: Interpret[c.Tree] = {
       for {
         arg <- Parse.popArg[c.Type, c.Expr[Any]]
-        argLabel = getArgumentText(arg.tree)
-        _ <- Parse.storeOpticInfo(OpticInfo(s"$$$argLabel", typeOf[Unit], arg.actualType, IsoType, IsoType))
+        _ <- Parse.storeOpticInfo(OpticInfo(getArgLabel(arg.tree), typeOf[Unit], arg.actualType, IsoType, IsoType))
       } yield q"_root_.goggles.macros.MacroInterpreter.const($arg)"
     }
 
     val (initCode, lensExprs) =
-      if (applied) (interpretSource, composedLens.toList)
+      if (mode.appliedToObject) (interpretSource, composedLens.toList)
       else (interpretLensExpr(composedLens.head), composedLens.tail)
 
     initCode.flatMap(composeAll(_, lensExprs))

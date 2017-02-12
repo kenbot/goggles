@@ -158,6 +158,22 @@ Any type for which an implicit `monocle.function.Index` is in scope can use `[i]
 
 ### Great compilation error messages
 Helpful compiler errors are a first class part of Goggles' design, hopefully encouraging exploration, clarifying optics concepts and allowing the functionality to be discoverable.
+```
+scala> get"$myBasket.items*.qty.foo"
+<console>:18: error: Int doesn't have a 'foo' method
+
+ Sections  │ Types                         │ Optics
+───────────┼───────────────────────────────┼───────────────────────────
+ $myBasket │ ShoppingBasket                │
+ .items    │ ShoppingBasket  ⇒  List[Item] │ Lens
+ *         │ List[Item]      ⇒  Item       │ Traversal
+ .qty      │ Item            ⇒  Int        │ Lens, returning Traversal
+ foo       │ Int             ⇒  ???        │
+
+       get"$myBasket.items*.qty.foo"
+       ^
+```
+
 
 ## Comparison to other approaches
 ### Goggles itself

@@ -1,9 +1,9 @@
 package goggles.macros
 
-sealed trait DslMode
+sealed abstract class DslMode(val appliedToObject: Boolean)
 
 object DslMode {
-  case object Get extends DslMode
-  case object Set extends DslMode
-  case object Lens extends DslMode
+  case object Get extends DslMode(true)
+  case object Set extends DslMode(true)
+  case object Lens extends DslMode(false)
 }
