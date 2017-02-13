@@ -1,5 +1,7 @@
 package goggles.macros
 
+import goggles.macros.errors.{NotEnoughArguments, GogglesError}
+
 import scalaz._, Scalaz._
 
 case class ParseState[T,Arg](args: List[Arg], infos: List[OpticInfo[T]])

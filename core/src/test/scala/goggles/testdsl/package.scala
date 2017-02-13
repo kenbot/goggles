@@ -1,6 +1,7 @@
 package goggles
 
-import goggles.macros.{GogglesError, ModifyOps, TestMacros}
+import goggles.macros.errors.GogglesError
+import goggles.macros.{ModifyOps, TestMacros}
 
 package object testdsl {
 

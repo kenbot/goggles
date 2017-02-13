@@ -1,5 +1,7 @@
 package goggles.macros
 
+import goggles.macros.errors.GogglesError
+
 case class MacroResult[Type, Tree](
   errorOrTree: Either[GogglesError[Type], Tree],
   infos: List[OpticInfo[Type]])

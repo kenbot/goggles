@@ -1,4 +1,6 @@
-package goggles.macros
+package goggles.macros.errors
+
+import goggles.macros.{Token, OpticType}
 
 sealed trait GogglesError[+T] {
   def map[U](f: T => U): GogglesError[U]

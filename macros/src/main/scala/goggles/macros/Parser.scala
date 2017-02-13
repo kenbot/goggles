@@ -1,5 +1,7 @@
 package goggles.macros
 
+import goggles.macros.errors._
+
 import scala.util.Try
 
 import scalaz._

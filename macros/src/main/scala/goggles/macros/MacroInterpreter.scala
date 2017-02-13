@@ -1,6 +1,7 @@
 package goggles.macros
 
 import goggles.macros.OpticType._
+import goggles.macros.errors._
 import monocle._
 
 import scala.reflect.macros.whitebox

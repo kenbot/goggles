@@ -1,6 +1,7 @@
 package goggles
 
 import goggles.macros._
+import goggles.macros.errors._
 import goggles.testdsl._
 import monocle.{Getter, Setter}
 import org.specs2._
