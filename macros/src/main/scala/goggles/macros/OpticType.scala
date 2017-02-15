@@ -8,6 +8,16 @@ private[goggles] sealed abstract class OpticType(
 
   import OpticType._
 
+  def allowsGet: Boolean = this match {
+    case SetterType => false
+    case _ => true
+  }
+
+  def allowsSet: Boolean = this match {
+    case FoldType | Fold1Type | GetterType => false
+    case _ => true
+  }
+
   def monoTypeName: String =
     if (polymorphic) typeName.tail
     else typeName

@@ -64,6 +64,8 @@ object TestMacros {
       case InvalidIndexSupplied(tok) => q"_root_.goggles.macros.errors.InvalidIndexSupplied($tok)"
       case UnclosedOpenBracket => q"_root_.goggles.macros.errors.UnclosedOpenBracket"
       case VerbatimIndexNotInt(expr) => q"_root_.goggles.macros.errors.VerbatimIndexNotPositiveInt($expr)"
+      case GetterOpticRequired(finalOpticType) => q"_root_.goggles.macros.errors.GetterOpticRequired($finalOpticType)"
+      case SetterOpticRequired(finalOpticType) => q"_root_.goggles.macros.errors.SetterOpticRequired($finalOpticType)"
       case NameNotFound(name, sourceType) => q"_root_.goggles.macros.errors.NameNotFound[String]($name, ${typeStr(sourceType)})"
       case NameNotAMethod(name, sourceType) => q"_root_.goggles.macros.errors.NameNotAMethod[String]($name, ${typeStr(sourceType)})"
       case NameHasArguments(name, sourceType) => q"_root_.goggles.macros.errors.NameHasArguments[String]($name, ${typeStr(sourceType)})"

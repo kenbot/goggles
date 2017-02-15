@@ -41,6 +41,8 @@ object ErrorMessages {
       }
 
       e match {
+        case GetterOpticRequired(finalOpticType) => userError(s"Required an optic type that can get values; found ${finalOpticType.monoTypeName}")
+        case SetterOpticRequired(finalOpticType) => userError(s"Required an optic type that can set values; found ${finalOpticType.monoTypeName}")
         case NameNotFound(name, sourceType) => userError(s"$sourceType doesn't have a '$name' method")
         case NameNotAMethod(name, sourceType) => userError(s"$sourceType member '$name' is not a method")
         case NameHasArguments(name, sourceType) => userError(s"'$name' method on $sourceType is not a valid getter; it has arguments")

@@ -24,7 +24,8 @@ object MacroInterpreter {
 
       for {
         info <- Parse.getLastOpticInfoOrElse[c.Type, c.Expr[Any]](OpticInfoNotFound(show(tree)))
-        verb <- Parse.fromOption(info.compositeOpticType.getVerb, GetVerbNotFound(info.compositeOpticType))
+        verb <- Parse.fromOption(info.compositeOpticType.getVerb, GetterOpticRequired
+        (info.compositeOpticType))
         postFix = info.compositeOpticType.getVerbPostfix
       } yield mungePostFix(q"($tree).${TermName(verb)}(())", postFix)
     }
@@ -51,10 +52,12 @@ object MacroInterpreter {
     def setterExpression(tree: c.Tree): Interpret[c.Tree] = {
       for {
         info <- Parse.getLastOpticInfoOrElse[c.Type, c.Expr[Any]](OpticInfoNotFound(show(tree)))
-      } yield info.compositeOpticType match {
-        case OpticType.SetterType => tree
-        case x => q"($tree).asSetter"
-      }
+        tree <- info.compositeOpticType match {
+          case OpticType.SetterType => Parse.pure[c.Type, c.Expr[Any], c.Tree](tree)
+          case x if x.allowsSet => Parse.pure[c.Type, c.Expr[Any], c.Tree](q"($tree).asSetter")
+          case x => Parse.raiseError[c.Type, c.Expr[Any], c.Tree](SetterOpticRequired(x))
+        }
+      } yield tree
     }
 
     val errorOrAst: Either[GogglesError[c.Type], AppliedLens] =

@@ -25,6 +25,8 @@ case class VerbatimIndexNotInt(expr: String) extends SyntaxError
 
 sealed trait MacroUserError[+T] extends GogglesError[T] {
   def map[U](f: T => U): MacroUserError[U] = this match {
+    case GetterOpticRequired(x) => GetterOpticRequired(x)
+    case SetterOpticRequired(x) => SetterOpticRequired(x)
     case NameNotFound(name, sourceType) => NameNotFound(name, f(sourceType))
     case NameNotAMethod(name, sourceType) => NameNotAMethod(name, f(sourceType))
     case NameHasArguments(name, sourceType) => NameHasArguments(name, f(sourceType))
@@ -44,6 +46,8 @@ sealed trait MacroUserError[+T] extends GogglesError[T] {
   }
 }
 
+case class GetterOpticRequired(finalOpticType: OpticType) extends MacroUserError[Nothing]
+case class SetterOpticRequired(finalOpticType: OpticType) extends MacroUserError[Nothing]
 case class NameNotFound[T](name: String, sourceType: T) extends MacroUserError[T]
 case class NameNotAMethod[T](name: String, sourceType: T) extends MacroUserError[T]
 case class NameHasArguments[T](name: String, sourceType: T) extends MacroUserError[T]

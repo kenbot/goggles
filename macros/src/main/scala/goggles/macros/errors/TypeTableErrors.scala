@@ -46,6 +46,8 @@ object TypeTableErrors {
   case class ErrorInfo(label: String, sourceType: String, targetType: String, opticType: String)
 
   private def getErrorInfo(e: MacroUserError[String]): Option[ErrorInfo] = e match {
+    case GetterOpticRequired(_) => None
+    case SetterOpticRequired(_) => None
     case NameNotFound(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
     case NameNotAMethod(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))
     case NameHasArguments(name, sourceType) => Some(ErrorInfo(name, sourceType, "???", ""))

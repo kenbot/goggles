@@ -27,6 +27,8 @@ class ErrorsSpec extends Specification with ScalaCheck {
       Error scenarios:
         get"" fails $empty
         get"^" fails $wrongChar
+        get"$$obj.$$setter" fails $getSetter
+        set"$$obj.$$getter" fails $setGetter
         get"$${obj}field" fails $nameNoDot
         get"$${obj}$$interp" fails $interpNoDot
         get"$$obj.*" fails $invalidAfterDot1
@@ -65,6 +67,16 @@ class ErrorsSpec extends Specification with ScalaCheck {
 
   def wrongChar =
     testGet"^" === Left(UnrecognisedChar('^'))
+
+  def getSetter = {
+    val setUser = Setter[ShoppingBasket, User](f => b => b.copy(user = f(b.user)))
+    testGet"$myBasket.$setUser" === Left(GetterOpticRequired(SetterType))
+  }
+
+  def setGetter = {
+    val getUser = Getter[ShoppingBasket, User](_.user)
+    testSet"$myBasket.$getUser" === Left(SetterOpticRequired(GetterType))
+  }
 
   def nameNoDot =
     testGet"${myBasket}items" === Left(NameWithNoDot("items"))
