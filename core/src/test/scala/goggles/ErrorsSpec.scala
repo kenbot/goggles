@@ -3,16 +3,14 @@ package goggles
 import goggles.macros._
 import goggles.macros.errors._
 import goggles.testdsl._
-import monocle.{Getter, Setter}
+import monocle.{Fold, Getter, Setter}
 import org.specs2._
 import OpticType._
 
 import Fixture._
 
-class A
-class B
-class C
-class D
+import scalaz.Monoid
+
 class HasArgsMethod { def bogus(a: Int): Int = 0 }
 class HasMultiParamMethod { def bogus()(): Int = 0 }
 class NoCopy(val i: Int)
@@ -44,7 +42,9 @@ class ErrorsSpec extends Specification with ScalaCheck {
         get"$$hasFooWithArgs.foo" fails $nameHasArgs
         get"$$hasFooWithMultiParamLists.foo" fails $nameHasMultiParamLists
         get"$$obj.$$notAnOptic" fails $notAnOptic
-        get"$$obj.$$setter.$$getter" fails $wrongKindOfOptic
+        get"$$obj.$$setter.$$getter" fails $wrongKindOfOpticSG
+        get"$$obj.$$setter.$$fold" fails $wrongKindOfOpticSF
+        get"$$obj.$$getter.$$setter" fails $wrongKindOfOpticGS
         get"$$a.$$aToB.$$xToZ" fails $typesDontMatch
         get"$$noEach*" fails $noEach
         get"$$noPossible?" fails $noPossible
@@ -109,33 +109,50 @@ class ErrorsSpec extends Specification with ScalaCheck {
     testGet"${new HasMultiParamMethod}.bogus" === Left(NameHasMultiParamLists("bogus", "goggles.HasMultiParamMethod"))
 
   def notAnOptic = {
-    testGet"$myBasket.${new A}" === Left(InterpNotAnOptic("${new A}", "goggles.A"))
+    testGet"$myBasket.$Apple" === Left(InterpNotAnOptic("$Apple", "goggles.Fixture.Apple"))
   }
 
-  def wrongKindOfOptic = {
-    val getter = Getter[A,B](_ => new B)
-    val setter = Setter[B,C](_ => _ => new B)
+  def wrongKindOfOpticGS = {
+    val getter = Getter[Apple,Banana](_ => Banana)
+    val setter = Setter[Banana,Carrot](_ => _ => Banana)
 
-    testGet"${new A}.$getter.$setter" === Left(WrongKindOfOptic(".$setter", "goggles.B", "goggles.C", GetterType, SetterType))
+    testGet"$Apple.$getter.$setter" === Left(WrongKindOfOptic(".$setter", "goggles.Fixture.Banana", "goggles.Fixture.Carrot", GetterType, SetterType))
+  }
+
+  def wrongKindOfOpticSG = {
+    val setter = Setter[Apple,Banana](_ => _ => Apple)
+    val getter = Getter[Banana,Carrot](_ => Carrot)
+
+    testGet"$Apple.$setter.$getter" === Left(WrongKindOfOptic(".$getter", "goggles.Fixture.Banana", "goggles.Fixture.Carrot", SetterType, GetterType))
+  }
+
+  def wrongKindOfOpticSF = {
+    val setter = Setter[Apple,Banana](_ => _ => Apple)
+
+    val fold = new Fold[Banana, Carrot] {
+      def foldMap[M: Monoid](f: Carrot => M)(b: Banana): M = Monoid[M].zero
+    }
+
+    testGet"$Apple.$setter.$fold" === Left(WrongKindOfOptic(".$fold", "goggles.Fixture.Banana", "goggles.Fixture.Carrot", SetterType, FoldType))
   }
 
   def typesDontMatch = {
-    val aToB = Getter[A,B](_ => new B)
-    val cToD = Getter[C,D](_ => new D)
+    val aToB = Getter[Apple,Banana](_ => Banana)
+    val cToD = Getter[Carrot,Dolmades](_ => Dolmades)
 
-    testGet"${new A}.$aToB.$cToD" === Left(TypesDontMatch(".$cToD", "goggles.C", "goggles.D", "goggles.B", "goggles.C"))
+    testGet"$Apple.$aToB.$cToD" === Left(TypesDontMatch(".$cToD", "goggles.Fixture.Carrot", "goggles.Fixture.Dolmades", "goggles.Fixture.Banana", "goggles.Fixture.Carrot"))
   }
 
   def noEach = {
-    testGet"${new A}*" === Left(ImplicitEachNotFound("*", "goggles.A"))
+    testGet"$Apple*" === Left(ImplicitEachNotFound("*", "goggles.Fixture.Apple"))
   }
 
   def noPossible = {
-    testGet"${new A}?" === Left(ImplicitPossibleNotFound("?", "goggles.A"))
+    testGet"$Apple?" === Left(ImplicitPossibleNotFound("?", "goggles.Fixture.Apple"))
   }
 
   def noIndex = {
-    testGet"${new A}[0]" === Left(ImplicitIndexNotFound("[0]", "goggles.A", "Int"))
+    testGet"$Apple[0]" === Left(ImplicitIndexNotFound("[0]", "goggles.Fixture.Apple", "Int"))
   }
 
   def wrongIndexType = {

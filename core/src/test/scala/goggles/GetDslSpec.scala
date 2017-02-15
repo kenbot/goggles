@@ -7,6 +7,8 @@ class GetDslSpec extends Specification with ScalaCheck { def is =
   s2"""
       "get" DSL scenarios:
          get"$$obj.field" $field
+         get"$$obj.method" $method
+         get"$$obj.methodParens" $methodParens
          get"$$obj.field1.field2" $fieldField
          get"$$obj.field.$$lens" $fieldLens
          get"$$obj.field*" $fieldStar
@@ -53,6 +55,12 @@ class GetDslSpec extends Specification with ScalaCheck { def is =
 
   def field =
     get"$myBasket.items" === myBasket.items
+
+  def method =
+    get"$myBasket.itemLength" === 3
+
+  def methodParens =
+    get"$myBasket.getItems" === myBasket.getItems()
 
   def fieldField =
     get"$myBasket.user.name" === "Wally"

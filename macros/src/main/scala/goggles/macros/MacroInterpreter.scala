@@ -19,10 +19,14 @@ object MacroInterpreter {
     type Interpret[A] = Parse[c.Type, c.Expr[Any], A]
 
     def getterExpression(tree: c.Tree): Interpret[c.Tree] = {
+      def mungePostFix(tree: c.Tree, pfix: Option[String]): c.Tree =
+        pfix.fold(tree)(str => q"$tree.${TermName(str)}")
+
       for {
         info <- Parse.getLastOpticInfoOrElse[c.Type, c.Expr[Any]](OpticInfoNotFound(show(tree)))
         verb <- Parse.fromOption(info.compositeOpticType.getVerb, GetVerbNotFound(info.compositeOpticType))
-      } yield q"($tree).${TermName(verb)}(())"
+        postFix = info.compositeOpticType.getVerbPostfix
+      } yield mungePostFix(q"($tree).${TermName(verb)}(())", postFix)
     }
 
     val errorOrAst: Either[GogglesError[c.Type], AppliedLens] =
@@ -137,7 +141,7 @@ object MacroInterpreter {
           else {
             getter.asMethod.paramLists match {
               case Nil | List(Nil) => Parse.pure(getter.info)
-              case List(_, _, _*) =>  Parse.raiseError(NameHasMultiParamLists(name, sourceType))
+              case List(_, _, _*) => Parse.raiseError(NameHasMultiParamLists(name, sourceType))
               case List(List(_, _*)) => Parse.raiseError(NameHasArguments(name, sourceType))
             }
           }
@@ -150,22 +154,32 @@ object MacroInterpreter {
           else {
             copyMethod.asMethod.paramLists match {
               case Nil | List(Nil) => Parse.raiseError(CopyMethodHasNoArguments(name, sourceType))
-              case List(_, _, _*) =>  Parse.raiseError(CopyMethodHasMultiParamLists(name, sourceType))
-              case List(args) if !args.exists(_.name == TermName(name)) => Parse.raiseError(CopyMethodLacksNamedArgument(name, sourceType))
+              case List(_, _, _*) => Parse.raiseError(CopyMethodHasMultiParamLists(name, sourceType))
               case List(args) if args.exists(!_.asTerm.isParamWithDefault) =>
                 val argsWithNoDefaults = args.filterNot(_.asTerm.isParamWithDefault).map(_.name.toString)
                 Parse.raiseError(CopyMethodLacksParameterDefaults(name, sourceType, argsWithNoDefaults))
+              case List(args) if !args.exists(_.name == TermName(name)) =>
+                Parse.raiseError(CopyMethodLacksNamedArgument(name, sourceType))
               case _ => Parse.pure(())
             }
           }
         }
 
+        def validateSetterIfRequired(sourceType: c.Type): Interpret[Unit] = {
+          if (!mode.isReadOnly) validateSetter(sourceType)
+          else Parse.pure(())
+        }
+
         for {
           sourceType <- getLastTargetType(name)
           targetType <- validateGetter(sourceType)
-          _ <- validateSetter(sourceType)
-          _ <- storeOpticInfo(s".$name", sourceType, targetType, LensType)
-        } yield q"_root_.monocle.Lens((s: $sourceType) => s.${TermName(name)})(a => (s: $sourceType) => s.copy(${TermName(name)} = a))"
+          _ <- validateSetterIfRequired(sourceType)
+          _ <- storeOpticInfo(s".$name", sourceType, targetType, mode.opticType)
+        } yield mode match {
+          case DslMode.Get => q"_root_.monocle.Getter((s: $sourceType) => s.${TermName(name)})"
+          case DslMode.Set => q"_root_.monocle.Setter[$sourceType, $targetType](f => s => s.copy(${TermName(name)} = f(s.${TermName(name)})))"
+          case DslMode.Lens => q"_root_.monocle.Lens((s: $sourceType) => s.${TermName(name)})(a => (s: $sourceType) => s.copy(${TermName(name)} = a))"
+        }
       }
 
       def interpretInterpolatedLens: Interpret[c.Tree] = {

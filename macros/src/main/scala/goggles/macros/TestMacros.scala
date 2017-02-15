@@ -27,7 +27,8 @@ object TestMacros {
 
 
     implicit val opticTypeLiftable = Liftable[OpticType] {
-      case FoldType => q"_root_.goggles.OpticType.FoldType"
+      case FoldType => q"_root_.goggles.macros.OpticType.FoldType"
+      case Fold1Type => q"_root_.goggles.macros.OpticType.Fold1Type"
       case GetterType => q"_root_.goggles.macros.OpticType.GetterType"
       case SetterType => q"_root_.goggles.macros.OpticType.SetterType"
       case TraversalType => q"_root_.goggles.macros.OpticType.TraversalType"
