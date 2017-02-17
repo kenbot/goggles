@@ -1,4 +1,4 @@
-package goggles.macros
+package goggles.macros.lex
 
 sealed abstract class Token(label: String) {
   override def toString = label

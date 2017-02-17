@@ -2,6 +2,8 @@ package goggles
 
 import goggles.macros._
 import goggles.macros.errors._
+import goggles.macros.interpret.OpticType
+import goggles.macros.lex._
 import goggles.testdsl._
 import monocle.{Fold, Getter, Setter}
 import org.specs2._

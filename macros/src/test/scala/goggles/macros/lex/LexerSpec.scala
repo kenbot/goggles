@@ -1,8 +1,7 @@
-package goggles.macros
+package goggles.macros.lex
 
+import goggles.macros.lex.Token._
 import org.specs2._
-
-import Token._
 
 
 class LexerSpec extends Specification with ScalaCheck { def is =

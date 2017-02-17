@@ -1,4 +1,4 @@
-package goggles.macros
+package goggles.macros.interpret
 
 import goggles.macros.errors.GogglesError
 

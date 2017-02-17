@@ -1,4 +1,4 @@
-package goggles.macros
+package goggles.macros.interpret
 
 private[goggles] sealed abstract class OpticType(
   val typeName: String,

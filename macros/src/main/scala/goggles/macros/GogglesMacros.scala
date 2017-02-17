@@ -1,6 +1,7 @@
 package goggles.macros
 
 import goggles.macros.errors.ErrorMessages
+import goggles.macros.interpret.{MacroResult, MacroInterpreter, DslMode}
 
 import scala.reflect.macros.whitebox
 

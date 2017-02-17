@@ -1,4 +1,4 @@
-package goggles.macros
+package goggles.macros.parse
 
 import scalaz.NonEmptyList
 

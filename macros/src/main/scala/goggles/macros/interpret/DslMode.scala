@@ -1,7 +1,8 @@
-package goggles.macros
+package goggles.macros.interpret
 
 import DslMode._
-import goggles.macros.OpticType.{LensType, SetterType, GetterType}
+import OpticType.{LensType, SetterType, GetterType}
+
 
 sealed trait DslMode {
   def isReadOnly = this == Get

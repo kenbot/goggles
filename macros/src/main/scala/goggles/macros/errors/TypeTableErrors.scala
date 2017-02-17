@@ -1,7 +1,8 @@
 package goggles.macros.errors
 
 
-import goggles.macros.DslMode.{Lens, Set, Get}
+import goggles.macros.interpret.{OpticInfo, DslMode}
+import DslMode.{Lens, Set, Get}
 import goggles.macros._
 
 object TypeTableErrors {

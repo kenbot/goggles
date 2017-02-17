@@ -1,5 +1,4 @@
-package goggles.macros
-
+package goggles.macros.lex
 
 object Lexer {
   import Token._

@@ -1,8 +1,8 @@
-package goggles.macros
+package goggles.macros.interpret
 
-import goggles.macros.errors.{NotEnoughArguments, GogglesError}
+import goggles.macros.errors.{GogglesError, NotEnoughArguments}
 
-import scalaz._, Scalaz._
+import scalaz._
 
 case class ParseState[T,Arg](args: List[Arg], infos: List[OpticInfo[T]])
 

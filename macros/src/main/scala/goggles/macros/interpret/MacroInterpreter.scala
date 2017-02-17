@@ -1,7 +1,8 @@
-package goggles.macros
+package goggles.macros.interpret
 
-import goggles.macros.OpticType._
 import goggles.macros.errors._
+import goggles.macros.lex.Lexer
+import goggles.macros.parse.{AST, Parser}
 import monocle._
 
 import scala.reflect.macros.whitebox
@@ -11,6 +12,7 @@ import scala.reflect.macros.whitebox
 object MacroInterpreter {
 
   import AST._
+  import OpticType._
 
   def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): MacroResult[c.Type, c.Tree] = {
     import AST._
@@ -335,7 +337,7 @@ object MacroInterpreter {
       for {
         arg <- Parse.popArg[c.Type, c.Expr[Any]]
         _ <- Parse.storeOpticInfo(OpticInfo(getArgLabel(arg.tree), typeOf[Unit], arg.actualType, IsoType, IsoType))
-      } yield q"_root_.goggles.macros.MacroInterpreter.const($arg)"
+      } yield q"_root_.goggles.macros.AppliedObject.const($arg)"
     }
 
     val (initCode, lensExprs) =
@@ -344,8 +346,6 @@ object MacroInterpreter {
 
     initCode.flatMap(composeAll(_, lensExprs))
   }
-
-  def const[A,B](a: => A) = PIso[Unit, B, A ,B](_ => a)(identity)
 
   private def getContextStringParts(implicit c: whitebox.Context): List[String] = {
     import c.universe._

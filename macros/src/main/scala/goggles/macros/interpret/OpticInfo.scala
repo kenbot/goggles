@@ -1,4 +1,4 @@
-package goggles.macros
+package goggles.macros.interpret
 
 case class OpticInfo[+T](
   label: String,

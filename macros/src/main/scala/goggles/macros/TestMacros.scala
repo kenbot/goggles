@@ -1,6 +1,8 @@
 package goggles.macros
 
 import goggles.macros.errors._
+import goggles.macros.interpret.{OpticType, MacroInterpreter}
+import goggles.macros.lex.Token
 
 import scala.reflect.macros.whitebox
 
@@ -27,26 +29,26 @@ object TestMacros {
 
 
     implicit val opticTypeLiftable = Liftable[OpticType] {
-      case FoldType => q"_root_.goggles.macros.OpticType.FoldType"
-      case Fold1Type => q"_root_.goggles.macros.OpticType.Fold1Type"
-      case GetterType => q"_root_.goggles.macros.OpticType.GetterType"
-      case SetterType => q"_root_.goggles.macros.OpticType.SetterType"
-      case TraversalType => q"_root_.goggles.macros.OpticType.TraversalType"
-      case OptionalType => q"_root_.goggles.macros.OpticType.OptionalType"
-      case PrismType => q"_root_.goggles.macros.OpticType.PrismType"
-      case LensType => q"_root_.goggles.macros.OpticType.LensType"
-      case IsoType =>  q"_root_.goggles.macros.OpticType.IsoType"
+      case FoldType => q"_root_.goggles.macros.interpret.OpticType.FoldType"
+      case Fold1Type => q"_root_.goggles.macros.interpret.OpticType.Fold1Type"
+      case GetterType => q"_root_.goggles.macros.interpret.OpticType.GetterType"
+      case SetterType => q"_root_.goggles.macros.interpret.OpticType.SetterType"
+      case TraversalType => q"_root_.goggles.macros.interpret.OpticType.TraversalType"
+      case OptionalType => q"_root_.goggles.macros.interpret.OpticType.OptionalType"
+      case PrismType => q"_root_.goggles.macros.interpret.OpticType.PrismType"
+      case LensType => q"_root_.goggles.macros.interpret.OpticType.LensType"
+      case IsoType =>  q"_root_.goggles.macros.interpret.OpticType.IsoType"
     }
 
     implicit val tokenLiftable = Liftable[Token] {
-      case Token.Name(name) => q"_root_.goggles.macros.Token.Name($name)"
-      case Token.Dot => q"_root_.goggles.macros.Token.Dot"
-      case Token.OpenBracket => q"_root_.goggles.macros.Token.OpenBracket"
-      case Token.CloseBracket => q"_root_.goggles.macros.Token.CloseBracket"
-      case Token.Star => q"_root_.goggles.macros.Token.Star"
-      case Token.Question => q"_root_.goggles.macros.Token.Question"
-      case Token.Hole => q"_root_.goggles.macros.Token.Hole"
-      case Token.Unrecognised(ch) => q"_root_.goggles.macros.Token.Unrecognised($ch)"
+      case Token.Name(name) => q"_root_.goggles.macros.lex.Token.Name($name)"
+      case Token.Dot => q"_root_.goggles.macros.lex.Token.Dot"
+      case Token.OpenBracket => q"_root_.goggles.macros.lex.Token.OpenBracket"
+      case Token.CloseBracket => q"_root_.goggles.macros.lex.Token.CloseBracket"
+      case Token.Star => q"_root_.goggles.macros.lex.Token.Star"
+      case Token.Question => q"_root_.goggles.macros.lex.Token.Question"
+      case Token.Hole => q"_root_.goggles.macros.lex.Token.Hole"
+      case Token.Unrecognised(ch) => q"_root_.goggles.macros.lex.Token.Unrecognised($ch)"
     }
 
     def typeStr(t: c.Type): String = t.toString

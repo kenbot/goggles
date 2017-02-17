@@ -1,10 +1,11 @@
-package goggles.macros
+package goggles.macros.parse
 
 import goggles.macros.errors._
+import goggles.macros.lex.Token
 
 import scala.util.Try
+import scalaz.{Name => _, NonEmptyList}
 
-import scalaz._
 
 object Parser {
   import AST._

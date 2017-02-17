@@ -1,6 +1,7 @@
 package goggles.macros.errors
 
 import goggles.macros._
+import goggles.macros.interpret.{OpticInfo, DslMode}
 
 import scala.reflect.api.Universe
 
