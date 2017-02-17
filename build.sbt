@@ -5,15 +5,15 @@ version := "0.1"
 organization := "com.github.kenbot"
 
 scalaVersion in ThisBuild := "2.12.1"
-run := run in Compile in core
 
 resolvers += Resolver.sonatypeRepo("releases")
 resolvers += Resolver.sonatypeRepo("snapshots")
 
-lazy val macros = (project in file("macros")).settings(
+lazy val macrosProject = (project in file("macros")).settings(
   libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
   libraryDependencies += "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
   libraryDependencies ++= specs2Deps,
+  moduleName := "goggles-macros",
   scalacOptions += "-Yrangepos",
   scalacOptions += "-language:experimental.macros"
 )
@@ -29,19 +29,19 @@ val monocleDeps = Seq(
   "com.github.julien-truffaut"  %%  "monocle-core"    % monocleVersion
 )
 
-lazy val core = (project in file("core")).
-  dependsOn(macros).
+lazy val dslProject = (project in file("dsl")).
+  dependsOn(macrosProject).
   settings(
     libraryDependencies ++= monocleDeps,
     libraryDependencies ++= specs2Deps,
-    moduleName := "goggles-core",
+    moduleName := "goggles-dsl",
     scalacOptions += "-Yrangepos",
     scalacOptions += "-language:experimental.macros"
   )
 
-initialCommands in core := "import goggles._;"
+initialCommands in dslProject := "import goggles._;"
 
-initialCommands in (core, Test) := """
+initialCommands in (dslProject, Test) := """
   import goggles._;
   import Fixture._;
 """
