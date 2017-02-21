@@ -5,6 +5,7 @@ version := "0.1"
 organization := "com.github.kenbot"
 
 scalaVersion in ThisBuild := "2.12.1"
+crossScalaVersions := Seq("2.11.8", "2.12.1")
 
 resolvers += Resolver.sonatypeRepo("releases")
 resolvers += Resolver.sonatypeRepo("snapshots")
@@ -24,7 +25,7 @@ val specs2Deps = Seq(
   "org.specs2" %% "specs2-scalacheck" % specs2Version % "test"
 )
 
-val monocleVersion = "1.4.0-M2"
+val monocleVersion = "1.4.0"
 val monocleDeps = Seq(
   "com.github.julien-truffaut"  %%  "monocle-core"    % monocleVersion
 )

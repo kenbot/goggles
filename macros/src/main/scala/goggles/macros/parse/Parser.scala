@@ -3,7 +3,7 @@ package goggles.macros.parse
 import goggles.macros.errors._
 import goggles.macros.lex.Token
 
-import scala.util.Try
+import scala.util.{Try, Success, Failure}
 import scalaz.{Name => _, NonEmptyList}
 
 
@@ -15,7 +15,7 @@ object Parser {
   def parseAppliedLens(tokens: List[Token]): Either[SyntaxError, AppliedLens] = {
     tokens match {
       case Nil => Left(EmptyError)
-      case Hole :: rest => parseComposedLens(rest).map(AppliedLens)
+      case Hole :: rest => parseComposedLens(rest).right.map(AppliedLens)
       case Unrecognised(c) :: _ => Left(UnrecognisedChar(c))
       case tok :: _ => Left(NonInterpolatedStart(tok))
     }
@@ -48,13 +48,13 @@ object Parser {
 
   def parseLensExpr(tokens: List[Token]): (List[Token], Either[SyntaxError, LensExpr]) = {
     tokens match {
-      case Dot :: tok :: rest => (rest, parseLensRef(tok).map(RefExpr))
+      case Dot :: tok :: rest => (rest, parseLensRef(tok).right.map(RefExpr))
       case Dot :: Nil  => (Nil, Left(EndingDot))
       case Star :: rest => (rest, Right(EachExpr))
       case Question :: rest => (rest, Right(OptExpr))
       case OpenBracket :: CloseBracket :: rest => (rest, Left(NoIndexSupplied))
       case OpenBracket :: tok :: CloseBracket :: rest => 
-        (rest, parseIndex(tok).map(IndexedExpr))
+        (rest, parseIndex(tok).right.map(IndexedExpr))
       case Nil => (Nil, Left(EmptyError))
       case OpenBracket :: rest if !rest.contains(CloseBracket) => (rest, Left(UnclosedOpenBracket))
       case OpenBracket :: tok :: rest => (rest, Left(InvalidIndexSupplied(tok)))
@@ -76,9 +76,10 @@ object Parser {
 
   def parseIndex(t: Token): Either[SyntaxError, Index] = {
     t match {
-      case Name(intStr) => Try(intStr.toInt).collect {
-        case i => LiteralIndex(i)
-      }.toEither.left.map(_ => VerbatimIndexNotInt(intStr))
+      case Name(intStr) => Try(intStr.toInt) match {
+        case Success(i) => Right(LiteralIndex(i))
+        case Failure(_) => Left(VerbatimIndexNotInt(intStr))
+      }
       case Hole => Right(InterpIndex)
       case CloseBracket => Left(NoIndexSupplied)
       case x => Left(InvalidIndexSupplied(x))
