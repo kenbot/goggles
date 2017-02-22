@@ -93,6 +93,19 @@ set"${"113"}.$stringToInt.$intToChar" ~= (_.toUpper)
 // "81" 
 ```
 
+### Compose Monocle optics
+```scala
+import goggles._
+import monocle.std.string.stringToInt
+import monocle.std.int.intToChar
+
+val myLens = lens"$stringToInt.$intToChar"
+// monocle.PPrism[String,String,Char,Char] = monocle.PPrism$$anon$1@2b6b0069
+
+myLens.getOption("113")
+// Some('q')
+```
+
 ### Traverse over collections
 ```scala
 import goggles._
