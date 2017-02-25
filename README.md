@@ -1,4 +1,6 @@
 # Goggles
+[![Build Status](https://secure.travis-ci.org/kenbot/goggles.png?branch=master)](http://travis-ci.org/kenbot/goggles)
+
 ## Principled, typesafe optics DSL
 Optics libraries are either too limited, or too hard to use.
 Goggles builds on Scala's powerful Monocle library, making
