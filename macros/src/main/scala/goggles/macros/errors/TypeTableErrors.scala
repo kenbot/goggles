@@ -38,7 +38,8 @@ private[goggles] object TypeTableErrors {
       }
     }
 
-    mode match {
+    if (infos.length < 2) Table.empty
+    else mode match {
       case Get | Set => appliedTable
       case Lens => lensTable
     }
