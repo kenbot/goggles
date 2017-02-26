@@ -7,7 +7,7 @@ import scala.util.{Try, Success, Failure}
 import scalaz.{Name => _, NonEmptyList}
 
 
-object Parser {
+private[goggles] object Parser {
   import AST._
   import Token._
 

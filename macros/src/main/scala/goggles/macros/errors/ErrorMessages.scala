@@ -1,11 +1,10 @@
 package goggles.macros.errors
 
-import goggles.macros._
 import goggles.macros.interpret.{OpticInfo, DslMode}
 
 import scala.reflect.api.Universe
 
-object ErrorMessages {
+private[goggles] object ErrorMessages {
 
   def message(error: GogglesError[Universe#Type], mode: DslMode, info: List[OpticInfo[Universe#Type]]): String = {
 

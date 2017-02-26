@@ -3,7 +3,7 @@ package goggles.macros.errors
 import goggles.macros.interpret.OpticType
 import goggles.macros.lex.Token
 
-sealed trait GogglesError[+T] {
+private[goggles] sealed trait GogglesError[+T] {
   def map[U](f: T => U): GogglesError[U]
 }
 

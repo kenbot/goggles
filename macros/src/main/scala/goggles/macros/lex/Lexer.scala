@@ -1,6 +1,6 @@
 package goggles.macros.lex
 
-object Lexer {
+private[goggles] object Lexer {
   import Token._
 
   def apply(fragments: List[String]): List[Token] = {

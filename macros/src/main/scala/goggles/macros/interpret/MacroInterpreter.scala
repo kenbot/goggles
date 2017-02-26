@@ -9,7 +9,7 @@ import scala.reflect.macros.whitebox
 
 
 
-object MacroInterpreter {
+private[goggles] object MacroInterpreter {
 
   import AST._
   import OpticType._

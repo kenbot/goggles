@@ -5,7 +5,7 @@ import goggles.macros.interpret.{OpticInfo, DslMode}
 import DslMode.{Lens, Set, Get}
 import goggles.macros._
 
-object TypeTableErrors {
+private[goggles] object TypeTableErrors {
   type Type = scala.reflect.api.Universe#Type
 
   def table(mode: DslMode, typedError: MacroUserError[Type], typedInfos: List[OpticInfo[Type]]): Table = {

@@ -1,6 +1,6 @@
 package goggles.macros.interpret
 
-case class OpticInfo[+T](
+private[goggles] case class OpticInfo[+T](
   label: String,
   sourceType: T,
   targetType: T,

@@ -4,7 +4,7 @@ import DslMode._
 import OpticType.{LensType, SetterType, GetterType}
 
 
-sealed trait DslMode {
+private[goggles] sealed trait DslMode {
   def isReadOnly = this == Get
 
   def opticType = this match {
@@ -19,7 +19,7 @@ sealed trait DslMode {
   }
 }
 
-object DslMode {
+private[goggles] object DslMode {
   case object Get extends DslMode
   case object Set extends DslMode
   case object Lens extends DslMode

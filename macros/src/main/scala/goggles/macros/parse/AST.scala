@@ -2,7 +2,7 @@ package goggles.macros.parse
 
 import scalaz.NonEmptyList
 
-object AST {
+private[goggles] object AST {
 
   case class ComposedLens(exprs: NonEmptyList[LensExpr]) {
     def head: LensExpr = exprs.head

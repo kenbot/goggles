@@ -4,9 +4,9 @@ import goggles.macros.errors.{GogglesError, NotEnoughArguments}
 
 import scalaz._
 
-case class ParseState[T,Arg](args: List[Arg], infos: List[OpticInfo[T]])
+private[goggles] case class ParseState[T,Arg](args: List[Arg], infos: List[OpticInfo[T]])
 
-trait Parse[T, Arg, A] {
+private[goggles] trait Parse[T, Arg, A] {
   self =>
 
   def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],A], ParseState[T,Arg])
@@ -33,7 +33,7 @@ trait Parse[T, Arg, A] {
   }
 }
 
-object Parse {
+private[goggles] object Parse {
   def pure[T,Arg,A](a: => A) = new Parse[T,Arg,A] {
     def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],A], ParseState[T,Arg]) = {
       (Right(a), state)

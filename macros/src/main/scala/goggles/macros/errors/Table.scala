@@ -1,11 +1,11 @@
 package goggles.macros.errors
 
-object Table {
+private[goggles] object Table {
   def apply(cols: Column*): Table = Table(cols.toList)
   def empty = Table(Nil)
 }
 
-case class Table(columns: List[Column]) {
+private[goggles] case class Table(columns: List[Column]) {
   def render: String = {
     if (columns.isEmpty) ""
     else {

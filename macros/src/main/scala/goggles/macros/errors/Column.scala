@@ -1,6 +1,6 @@
 package goggles.macros.errors
 
-case class Column(heading: String, rawContent: Vector[String], maxWidth: Option[Int] = None) {
+private[goggles] case class Column(heading: String, rawContent: Vector[String], maxWidth: Option[Int] = None) {
   def margin = 1
 
   val contentWidth = (heading +: rawContent).map(c => trunc(c.trim).length).max

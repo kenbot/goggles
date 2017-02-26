@@ -1,10 +1,10 @@
 package goggles.macros.lex
 
-sealed abstract class Token(label: String) {
+private[goggles] sealed abstract class Token(label: String) {
   override def toString = label
 }
 
-object Token {
+private[goggles] object Token {
   case class Name(name: String) extends Token(name)
   case object Hole extends Token("$__")
   case object Star extends Token("*")
