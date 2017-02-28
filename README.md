@@ -32,6 +32,16 @@ set"$myBakery.cakes*.toppings[0].cherries" := 7
 The DSL runs in the compiler, and is completely typesafe.
 It generates plain Monocle code.
 
+## Getting started
+Goggles supports Scala 2.11 and 2.12. Add the following to your `build.sbt` file:
+```scala
+libraryDependencies += "com.github.kenbot" %%  "goggles-dsl"     % "1.0"
+
+libraryDependencies += "com.github.kenbot" %%  "goggles-macros"  % "1.0"
+
+scalacOptions += "-Yrangepos" // Enables better error messages
+```
+
 ## Motivation
 ### 1. Functional programming needs optics 
 In imperative programming, a game world might be updated like this:
