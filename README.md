@@ -1,7 +1,6 @@
-# Goggles
+# Goggles - pleasant, yet principled optics DSL
 [![Build Status](https://secure.travis-ci.org/kenbot/goggles.png?branch=master)](http://travis-ci.org/kenbot/goggles)
 
-## Principled, typesafe optics DSL
 Optics libraries are either too limited, or too hard to use.
 Goggles builds on Scala's powerful Monocle library, making
 immutability easy, fun, and boring, like it should be.
@@ -35,9 +34,8 @@ It generates plain Monocle code.
 ## Getting started
 Goggles supports Scala 2.11 and 2.12. Add the following to your `build.sbt` file:
 ```scala
-libraryDependencies += "com.github.kenbot" %%  "goggles-dsl"     % "1.0"
-
-libraryDependencies += "com.github.kenbot" %%  "goggles-macros"  % "1.0"
+libraryDependencies ++= Seq("com.github.kenbot" %%  "goggles-dsl"     % "1.0",
+                            "com.github.kenbot" %%  "goggles-macros"  % "1.0")
 
 scalacOptions += "-Yrangepos" // Enables better error messages
 ```
