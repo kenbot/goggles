@@ -3,7 +3,6 @@ package goggles.macros.interpret
 import goggles.macros.errors._
 import goggles.macros.lex.Lexer
 import goggles.macros.parse.{AST, Parser}
-import monocle._
 
 import scala.reflect.macros.whitebox
 
