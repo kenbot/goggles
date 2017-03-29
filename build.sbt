@@ -6,7 +6,10 @@ resolvers += Resolver.sonatypeRepo("snapshots")
 val commonSettings = Seq(
   organization := "com.github.kenbot",
   scalaVersion in ThisBuild := "2.12.1",
-  crossScalaVersions := Seq("2.11.8", "2.12.1")
+  crossScalaVersions := Seq("2.11.8", "2.12.1"),
+  scalacOptions += "-Ywarn-unused-import",
+  scalacOptions in (Compile, console) -= "-Ywarn-unused-import",
+  scalacOptions in (Test, console) -= "-Ywarn-unused-import"
 )
 
 lazy val goggles = project.in(file("."))
