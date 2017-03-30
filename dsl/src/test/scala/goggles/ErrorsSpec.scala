@@ -1,6 +1,5 @@
 package goggles
 
-import goggles.macros._
 import goggles.macros.errors._
 import goggles.macros.interpret.OpticType
 import goggles.macros.lex._
