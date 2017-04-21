@@ -42,6 +42,8 @@ class ErrorsSpec extends Specification with ScalaCheck {
         get"$$obj[]" fails $emptyIndex
         get"$$obj[*]" fails $invalidIndex
         get"$$obj[" fails $unclosedOpenBracket
+        get"$$obj['x]" fails $unclosedSingleQuote
+        get"$$obj'" fails $unclosedSingleQuote
         get"$$noFoo.foo" fails $nameNotFound
         get"$$hasFooWithArgs.foo" fails $nameHasArgs
         get"$$hasFooWithMultiParamLists.foo" fails $nameHasMultiParamLists

@@ -1,39 +1,131 @@
 package goggles.macros.parse
 
 import goggles.macros.errors._
-import goggles.macros.lex.Token
 
 import scala.util.{Try, Success, Failure}
 import scalaz.{Name => _, NonEmptyList}
 
 
+sealed trait Parse[+A] {
+  self =>
+
+  def apply(list: List[Token]): Either[SyntaxError, (List[Token], A)]
+
+  final def flatMap[B](f: A => Parse[B]): Parse[B] = new Parse[B] {
+    def apply(list: List[Token]): Either[SyntaxError, (List[Token], B)] = {
+      self(list).flatMap {
+        case (toks, a) => f(a)(toks)
+      }
+    }
+  }
+
+  final def map[B](f: A => B): Parse[B] = new Parse[B] {
+    def apply(list: List[Token]): Either[SyntaxError, (List[Token], B)] = {
+      self(list).map {
+        case (toks, a) => (toks, f(a))
+      }
+    }
+  }
+
+  final def many: Parse[List[A]] = new Parse[List[A]] {
+    override def apply(list: List[Token]): Either[SyntaxError, (List[Token], List[A])] = {
+      self(list) match {
+
+      }
+    }
+  }
+
+  final def ||[B >: A](p: => Parse[B]): Parse[B] = new Parse[B] {
+    def apply(list: List[Token]): Either[SyntaxError, (List[Token], B)] = {
+      self(list) match {
+        case Left(_) => p(list)
+        case right => right
+      }
+    }
+  }
+
+  private def newParser[B](f: Either[SyntaxError, (List[Token], A)] =>
+                              Either[SyntaxError, (List[Token], B)]): Parse[B] = new Parse[B] {
+    def apply(list: List[Token]): Either[SyntaxError, (List[Token], B)] = {
+      f(self(list))
+    }
+  }
+}
+
+object Parse {
+  def pure[A](a: A): Parse[A] = new Parse[A] {
+    def apply(list: List[Token]): Either[SyntaxError, (List[Token], A)] =
+      Right((list, a))
+  }
+
+  def modifyTokens(f: List[Token] => List[Token]): Parse[Unit] = new Parse[Unit] {
+    def apply(list: List[Token]): Either[SyntaxError, (List[Token], Unit)] =
+      Right((f(list), ()))
+  }
+
+  def nextToken: Parse[Token] = new Parse[Token] {
+    def apply(list: List[Token]): Either[SyntaxError, (List[Token], Token)] = list match {
+      case Nil => Left(EmptyError)
+      case next :: rest => Right((rest, next))
+    }
+  }
+
+  def nextChar: Parse[Char] =
+    nextToken.flatMap {
+      case Ch(c) => Parse.pure(c)
+      case Hole => Parse.raiseError(EmptyError)
+    }
+
+  def readWhile(f: Token => Boolean): Parse[List[Token]] =
+    for {
+      tok <- nextToken
+      if f(tok)
+      list <- readWhile(f)
+    } yield tok :: list
+
+  def readName: Parse[String] = {
+    readWhile(_.isChar).map(_.foldLeft("")((acc, c) => s"$c$acc"))
+  }
+
+  def raiseError(e: SyntaxError): Parse[Nothing] = new Parse[Nothing] {
+    def apply(list: List[Token]): Either[SyntaxError, (List[Token], Nothing)] = {
+      Left(e)
+    }
+  }
+}
+
+sealed trait Token {
+  final def isChar = this match {
+    case Ch(_) => true
+    case Hole => false
+  }
+}
+case class Ch(c: Char) extends Token
+case object Hole extends Token
+
+
 private[goggles] object Parser {
   import AST._
-  import Token._
 
 
-  def parseAppliedLens(tokens: List[Token]): Either[SyntaxError, AppliedLens] = {
-    tokens match {
-      case Nil => Left(EmptyError)
-      case Hole :: rest => parseComposedLens(rest).right.map(AppliedLens)
-      case Unrecognised(c) :: _ => Left(UnrecognisedChar(c))
-      case tok :: _ => Left(NonInterpolatedStart(tok))
-    }
+  def parseAppliedLens: Parse[AppliedLens] = Parse.nextToken.flatMap {
+    case Hole => parseComposedLens.map(AppliedLens)
+    case tok => Parse.raiseError(NonInterpolatedStart(tok))
   }
 
-  def parseUnappliedLens(tokens: List[Token]): Either[SyntaxError, ComposedLens] = {
-    tokens match {
-      case Nil => Left(EmptyError)
-      case Hole :: rest => parseComposedLens(Dot :: Hole :: rest)
-      case Unrecognised(c) :: _ => Left(UnrecognisedChar(c))
-      case tok :: _ => Left(NonInterpolatedStart(tok))
-    }
+  def parseUnappliedLens: Parse[ComposedLens] = Parse.nextToken.flatMap {
+    case Hole => Parse.modifyTokens(Ch('.') :: Hole :: _).flatMap(_ => parseComposedLens)
+    case Ch(c) if !isRecognisedChar(c) => Parse.raiseError(UnrecognisedChar(c))
+    case tok => Parse.raiseError(NonInterpolatedStart(tok))
   }
 
-  private def parseComposedLens(tokens: List[Token]): Either[SyntaxError, ComposedLens] = {
+  private def parseComposedLens: Parse[ComposedLens] = {
+    def loop(exprs: List[LensExpr]): Parse[ComposedLens] = {
+      for {
+        lx <- parseLensExpr
+      } yield ComposedLens(NonEmptyList(h, t: _*))
 
-    def loop(remaining: List[Token], exprs: List[LensExpr]): Either[SyntaxError, ComposedLens] = {
-      parseLensExpr(remaining) match {
+      parseLensExpr match {
         case (Nil, Right(lensExpr)) =>
           val h :: t = (lensExpr :: exprs).reverse
           Right(ComposedLens(NonEmptyList(h, t: _*)))
@@ -43,18 +135,19 @@ private[goggles] object Parser {
       }
     }
 
-    loop(tokens, Nil)
+    loop(Nil)
   }
 
-  def parseLensExpr(tokens: List[Token]): (List[Token], Either[SyntaxError, LensExpr]) = {
+  def parseLensExpr: Parse[LensExpr] = {
     tokens match {
-      case Dot :: tok :: rest => (rest, parseLensRef(tok).right.map(RefExpr))
-      case Dot :: Nil  => (Nil, Left(EndingDot))
-      case Star :: rest => (rest, Right(EachExpr))
-      case Question :: rest => (rest, Right(OptExpr))
-      case OpenBracket :: CloseBracket :: rest => (rest, Left(NoIndexSupplied))
-      case OpenBracket :: tok :: CloseBracket :: rest => 
+      case Ch('.') :: tok :: rest => (rest, parseLensRef(tok).right.map(RefExpr))
+      case Ch('.') :: Nil  => (Nil, Left(EndingDot))
+      case Ch('*') :: rest => (rest, Right(EachExpr))
+      case Ch('?') :: rest => (rest, Right(OptExpr))
+      case Ch('[') :: Ch(']') :: rest => (rest, Left(NoIndexSupplied))
+      case Ch('[') :: tok :: Ch(']') :: rest =>
         (rest, parseIndex(tok).right.map(IndexedExpr))
+      case Ch('[') :: Ch('\'') :: Name(str) :: Ch('\'') :: Ch(']') :: rest => (rest, Right(LiteralStringIndex(str)))
       case Nil => (Nil, Left(EmptyError))
       case OpenBracket :: rest if !rest.contains(CloseBracket) => (rest, Left(UnclosedOpenBracket))
       case OpenBracket :: tok :: rest => (rest, Left(InvalidIndexSupplied(tok)))
@@ -77,7 +170,7 @@ private[goggles] object Parser {
   def parseIndex(t: Token): Either[SyntaxError, Index] = {
     t match {
       case Name(intStr) => Try(intStr.toInt) match {
-        case Success(i) => Right(LiteralIndex(i))
+        case Success(i) => Right(LiteralIntIndex(i))
         case Failure(_) => Left(VerbatimIndexNotInt(intStr))
       }
       case Hole => Right(InterpIndex)
@@ -85,4 +178,8 @@ private[goggles] object Parser {
       case x => Left(InvalidIndexSupplied(x))
     }
   }
+
+  private def isRecognisedChar(c: Char): Boolean =
+    c.isLetterOrDigit || "*?.[]".contains(c)
+
 }

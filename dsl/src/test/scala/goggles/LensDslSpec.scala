@@ -14,7 +14,8 @@ class LensDslSpec extends Specification with ScalaCheck { def is =
          lens"$$lens1.$$lens2" $lensLens
          lens"$$lens*" $lensStar
          lens"$$lens?" $lensQ
-         lens"$$lens[0]" $lensIndex
+         lens"$$lens[0]" $lensIntIndex
+         lens"$$lens['a']" $lensStringIndex
          lens"$$lens[$$n]" $lensInterpIndex
 """
   /*
@@ -110,7 +111,11 @@ class LensDslSpec extends Specification with ScalaCheck { def is =
     lens"$basketDiscount?".getOption(b) === basketDiscount.composeOptional(possible).getOption(b)
   }
 
-  def lensIndex = prop { (b: ShoppingBasket) =>
+  def lensStringIndex = prop { (b: ShoppingBasket) =>
+    lens"$basketUser.flags['banned']".getOption(b) === basketUser.composeOptional(index("banned")).getOption(b)
+  }
+
+  def lensIntIndex = prop { (b: ShoppingBasket) =>
     lens"$basketItems[0]".getOption(b) === basketItems.composeOptional(index(0)).getOption(b)
   }
 

@@ -40,8 +40,10 @@ class GetDslSpec extends Specification with ScalaCheck { def is =
          get"$$obj??" (failed) $qqFailed
          get"$$obj?[0]" $qIndex
          get"$$obj?[0]" (index failed) $qIndexFailed
-         get"$$obj[0]" $index
-         get"$$obj[0]" (failed) $indexFailed
+         get"$$obj[0]" $intIndex
+         get"$$obj[0]" (failed) $intIndexFailed
+         get"$$obj['a']" $stringIndex
+         get"$$obj['a'] (failed)" $stringIndexFailed
          get"$$obj[$$i]" $interpIndex
          get"$$obj[0].field" $indexField
          get"$$obj[0].$$lens" $indexLens
@@ -161,11 +163,17 @@ class GetDslSpec extends Specification with ScalaCheck { def is =
   def qIndexFailed =
     get"${Option(List.empty[Int])}?[0]" === None
 
-  def index =
+  def intIndex =
     get"$myItemList[1]" === Some(Item(22))
 
-  def indexFailed =
+  def intIndexFailed =
     get"$myItemList[9]" === None
+
+  def stringIndex =
+    get"${Map("a" -> 9)}['a']" === Some(22)
+
+  def stringIndexFailed =
+    get"${Map("a", 9)}['b']" === None
 
   def interpIndex = {
     val n = 1

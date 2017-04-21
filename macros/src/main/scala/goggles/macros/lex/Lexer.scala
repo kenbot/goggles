@@ -28,7 +28,8 @@ private[goggles] object Lexer {
         case '*' :: tail => loop(Nil, tail, Star :: mkName(nameSoFar) ::: tokens) 
         case '?' :: tail => loop(Nil, tail, Question :: mkName(nameSoFar) ::: tokens) 
         case '[' :: tail => loop(Nil, tail, OpenBracket :: mkName(nameSoFar) ::: tokens) 
-        case ']' :: tail => loop(Nil, tail, CloseBracket :: mkName(nameSoFar) ::: tokens) 
+        case ']' :: tail => loop(Nil, tail, CloseBracket :: mkName(nameSoFar) ::: tokens)
+        case '\'' :: tail => loop(Nil, tail, Quote :: mkName(nameSoFar) ::: tokens)
         case x :: tail => loop(Nil, tail, Unrecognised(x) :: tokens)
       }
     }

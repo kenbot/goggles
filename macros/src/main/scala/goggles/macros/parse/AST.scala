@@ -23,7 +23,8 @@ private[goggles] object AST {
   case object InterpLensRef extends LensRef
 
   sealed trait Index
-  case class LiteralIndex(i: Int) extends Index
+  case class LiteralIntIndex(i: Int) extends Index
+  case class LiteralStringIndex(i: String) extends Index
   case object InterpIndex extends Index
 }
 

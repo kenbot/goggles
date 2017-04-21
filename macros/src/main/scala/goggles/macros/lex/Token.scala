@@ -12,5 +12,6 @@ private[goggles] object Token {
   case object Question extends Token("?")
   case object OpenBracket extends Token("[")
   case object CloseBracket extends Token("]")
+  case object Quote extends Token("'")
   case class Unrecognised(ch: Char) extends Token(ch.toString)
 }

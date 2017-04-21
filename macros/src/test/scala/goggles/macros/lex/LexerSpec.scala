@@ -11,6 +11,7 @@ class LexerSpec extends Specification with ScalaCheck { def is =
       Make each closed bracket a token $closeBrackets
       Make each dot a token $dots
       Make each star a token $stars
+      Make each single-quote a token $quotes
       Make each question mark a token $questionMarks
       Record a hole for the gaps between each fragment $holes
       Record consecutive identifier characters as a single name $identifiers
@@ -27,6 +28,9 @@ class LexerSpec extends Specification with ScalaCheck { def is =
 
   def stars =
     Lexer(List("***")) === List(Star, Star, Star)
+
+  def quotes =
+    Lexer(List("'''")) === List(Quote, Quote, Quote)
 
   def questionMarks =
     Lexer(List("???")) === List(Question, Question, Question)
