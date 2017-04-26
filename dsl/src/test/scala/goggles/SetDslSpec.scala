@@ -1,5 +1,7 @@
 package goggles
 
+import goggles.macros.{MonocleModifyOps, AppliedObject}
+import monocle._
 import org.specs2._
 
 
@@ -47,6 +49,7 @@ class SetDslSpec extends Specification with ScalaCheck { def is =
          set"$$obj[0]?" ~= f $indexQ
          set"$$obj[0]?" ~= f (q failed) $indexQFailed
          set"$$obj[0][0]" ~= f $indexIndex
+         set"$$foo.bar" ~= f (polymorphic) $polymorphicSet
    """
 
   import Fixture._
@@ -199,4 +202,21 @@ class SetDslSpec extends Specification with ScalaCheck { def is =
                 List(7,8,9))}[1][2]" += 1) === List(List(1,2,3),
                                                     List(4,5,7),
                                                     List(7,8,9))
+  case class Foo[A](a: A)
+
+  def polymorphicSet = {
+    def x[A,B] = PSetter[Foo[A], Foo[B], A, B](f => s => s.copy(a = f(s.a)))
+
+    //x.modify(_.toString)(Foo(3)) === Foo("3")
+
+    set"${Foo(3)}.$x" ~= (_.toString)
+    //(set"${Foo(3)}.${x[String]}" ~= (_.toString)) === Foo("3")
+  }
+
+  def ops[S,T,A,B](s: PSetter[S,T,A,B], source: S): Ops[S,T,A,B] = new Ops(s,source)
+}
+
+
+class Ops[S,T,A,B](s: => PSetter[S,T,A,B], source: => S) {
+  def ~=(f: A => B): T = s.modify(f)(source)
 }

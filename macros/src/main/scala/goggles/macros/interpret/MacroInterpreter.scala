@@ -152,38 +152,51 @@ private[goggles] object MacroInterpreter {
           }
         }
 
-        def validateSetter(sourceType: c.Type): Interpret[Unit] = {
+        /**
+          * Try to find a valid copy method, returning the resulting source type,
+          * and the expected target type.
+          */
+        def validateSetter(sourceType: c.Type): Interpret[(c.Type, c.Type)] = {
           val copyMethod = sourceType.member(TermName("copy"))
           if (copyMethod == NoSymbol) Parse.raiseError(CopyMethodNotFound(name, sourceType))
           else if (!copyMethod.isMethod) Parse.raiseError(CopyMethodNotAMethod(name, sourceType))
           else {
             copyMethod.asMethod.paramLists match {
-              case Nil | List(Nil) => Parse.raiseError(CopyMethodHasNoArguments(name, sourceType))
-              case List(_, _, _*) => Parse.raiseError(CopyMethodHasMultiParamLists(name, sourceType))
+              case Nil | List(Nil) =>
+                Parse.raiseError(CopyMethodHasNoArguments(name, sourceType))
+
+              case List(_, _, _*) =>
+                Parse.raiseError(CopyMethodHasMultiParamLists(name, sourceType))
+
               case List(args) if args.exists(!_.asTerm.isParamWithDefault) =>
                 val argsWithNoDefaults = args.filterNot(_.asTerm.isParamWithDefault).map(_.name.toString)
                 Parse.raiseError(CopyMethodLacksParameterDefaults(name, sourceType, argsWithNoDefaults))
-              case List(args) if !args.exists(_.name == TermName(name)) =>
-                Parse.raiseError(CopyMethodLacksNamedArgument(name, sourceType))
-              case _ => Parse.pure(())
+
+              case List(args) =>
+                val optArgSym = args.find(_.name == TermName(name))
+                optArgSym match {
+                  case None => Parse.raiseError(CopyMethodLacksNamedArgument(name, sourceType))
+                  case Some(argSym) => Parse.pure(copyMethod.asMethod.returnType, argSym.info)
+                }
             }
           }
         }
 
-        def validateSetterIfRequired(sourceType: c.Type): Interpret[Unit] = {
+        def validateSetterIfRequired(sourceType: c.Type): Interpret[(c.Type, c.Type)] = {
           if (!mode.isReadOnly) validateSetter(sourceType)
-          else Parse.pure(())
+          else Parse.pure((typeOf[Nothing], typeOf[Nothing]))
         }
 
         for {
           sourceType <- getLastTargetType(name)
           targetType <- validateGetter(sourceType)
-          _ <- validateSetterIfRequired(sourceType)
+          setterTypes <- validateSetterIfRequired(sourceType)
+          (sourceType2, targetType2) = setterTypes
           _ <- storeOpticInfo(s".$name", sourceType, targetType, mode.opticType)
         } yield mode match {
           case DslMode.Get => q"_root_.monocle.Getter((s: $sourceType) => s.${TermName(name)})"
-          case DslMode.Set => q"_root_.monocle.Setter[$sourceType, $targetType](f => s => s.copy(${TermName(name)} = f(s.${TermName(name)})))"
-          case DslMode.Lens => q"_root_.monocle.Lens((s: $sourceType) => s.${TermName(name)})(a => (s: $sourceType) => s.copy(${TermName(name)} = a))"
+          case DslMode.Set => q"_root_.monocle.PSetter[$sourceType, $sourceType2, $targetType, $targetType2](f => s => s.copy(${TermName(name)} = f(s.${TermName(name)})))"
+          case DslMode.Lens => q"_root_.monocle.PLens[$sourceType, $sourceType2, $targetType, $targetType2](s => s.${TermName(name)})(a => s => s.copy(${TermName(name)} = a))"
         }
       }
 
