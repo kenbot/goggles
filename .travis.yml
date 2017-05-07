@@ -4,3 +4,13 @@ scala:
   - 2.11.8
 jdk:
   - oraclejdk8
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt/boot
+env:
+  matrix:
+    - TARGET=JVM PRE=test:compile
+    - TARGET=JS  PRE=test:fastOptJS
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION goggles$TARGET/$PRE goggles$TARGET/test
