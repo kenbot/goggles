@@ -14,7 +14,6 @@ private[goggles] object MacroInterpreter {
   import OpticType._
 
   def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): MacroResult[c.Type, c.Tree] = {
-    import AST._
     import c.universe._
 
     type Interpret[A] = Parse[c.Type, c.Expr[Any], A]
@@ -45,7 +44,6 @@ private[goggles] object MacroInterpreter {
   }
 
   def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): MacroResult[c.Type, c.Tree] = {
-    import AST._
     import c.universe._
 
     type Interpret[A] = Parse[c.Type, c.Expr[Any], A]

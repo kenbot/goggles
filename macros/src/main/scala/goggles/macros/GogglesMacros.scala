@@ -24,10 +24,11 @@ object GogglesMacros {
     result: MacroResult[c.Type, c.Tree], mode: DslMode): c.Tree = {
 
     result match {
-      case MacroResult(Right(tree), _) => tree
-      case MacroResult(Left(err), infos) =>
+      case MacroResult(Right(tree), _, _) => tree
+      case MacroResult(Left(err), infos, offset) =>
         val errMsg = ErrorMessages.message(err, mode, infos)
-        c.abort(c.enclosingPosition, errMsg)
+        val start = c.enclosingPosition
+        c.abort(start.withPoint(start.point + offset), errMsg)
     }
   }
 }
