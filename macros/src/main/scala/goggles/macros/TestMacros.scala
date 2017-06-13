@@ -1,5 +1,6 @@
 package goggles.macros
 
+import goggles.macros.interpret.MacroResult
 import goggles.macros.errors._
 import goggles.macros.interpret.{OpticType, MacroInterpreter}
 import goggles.macros.lex.Token
@@ -10,22 +11,24 @@ import scala.reflect.macros.whitebox
 object TestMacros {
 
   def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.getImpl(c)(args: _*).errorOrTree)
+    handleResult(c)(MacroInterpreter.getImpl(c)(args: _*))
   }
 
   def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.setImpl(c)(args: _*).errorOrTree)
+    handleResult(c)(MacroInterpreter.setImpl(c)(args: _*))
   }
 
   def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.lensImpl(c)(args: _*).errorOrTree)
+    handleResult(c)(MacroInterpreter.lensImpl(c)(args: _*))
   }
 
   private def handleResult(c: whitebox.Context)(
-    result: Either[GogglesError[c.Type], c.Tree]): c.Tree = {
+    macroResult: MacroResult[c.Type, c.Tree]): c.Tree = {
 
     import OpticType._
     import c.universe._
+
+    val result = macroResult.errorOrTree
 
 
     implicit val opticTypeLiftable = Liftable[OpticType] {

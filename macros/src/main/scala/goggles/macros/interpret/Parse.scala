@@ -4,7 +4,7 @@ import goggles.macros.errors.{GogglesError, NotEnoughArguments}
 
 import scalaz._
 
-private[goggles] case class ParseState[T,Arg](args: List[Arg], infos: List[OpticInfo[T]])
+private[goggles] case class ParseState[T,Arg](args: List[Arg], infos: List[OpticInfo[T]], offset: Int)
 
 private[goggles] trait Parse[T, Arg, A] {
   self =>
@@ -28,7 +28,7 @@ private[goggles] trait Parse[T, Arg, A] {
   }
 
   final def eval(args: List[Arg]): (Either[GogglesError[T],A], List[OpticInfo[T]]) = {
-    val (errorOrA, ParseState(_, infos)) = apply(ParseState(args, Nil))
+    val (errorOrA, ParseState(_, infos, _)) = apply(ParseState(args, Nil, 0))
     (errorOrA, infos.reverse)
   }
 }
@@ -72,14 +72,20 @@ private[goggles] object Parse {
 
   def storeOpticInfo[T,Arg](info: OpticInfo[T]) = new Parse[T, Arg, Unit]  {
     def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],Unit], ParseState[T,Arg]) = {
-      (Right(()), ParseState(state.args, info :: state.infos))
+      (Right(()), state.copy(infos = info :: state.infos))
     }
   }
 
   def popArg[T, Arg] = new Parse[T, Arg, Arg] {
     def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],Arg], ParseState[T,Arg]) = state.args match {
-      case arg :: rest => (Right(arg), ParseState(rest, state.infos))
+      case arg :: rest => (Right(arg), state.copy(args = rest))
       case Nil => (Left(NotEnoughArguments), state)
+    }
+  }
+
+  def addToOffset[T, Arg](delta: Int) = new Parse[T, Arg, Unit] {
+    def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],Unit], ParseState[T,Arg]) = {
+      (Right(()), state.copy(offset = state.offset + delta))
     }
   }
 
