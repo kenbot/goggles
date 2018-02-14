@@ -79,9 +79,11 @@ lazy val dslProject = (crossProject in file("dsl")).
   )
 
 lazy val noPublishSettings = Seq(
-  publish := (),
-  publishLocal := (),
-  publishArtifact := false
+  publish := {},
+  publishTo := Some(Resolver.file("delete-me", file("delete-me"))),
+  publishLocal := {},
+  publishArtifact := false,
+  skip in publish := true
 )
     
 
@@ -126,7 +128,7 @@ val publishSettings = Seq(
     setReleaseVersion,
     commitReleaseVersion,
     tagRelease,
-    publishArtifacts,
+    releaseStepCommandAndRemaining("publish"),
     setNextVersion,
     commitNextVersion,
     pushChanges
