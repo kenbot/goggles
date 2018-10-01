@@ -16,36 +16,19 @@ lazy val goggles = project.in(file("."))
   .settings(moduleName := "goggles")
   .settings(commonSettings)
   .settings(noPublishSettings)
-  .aggregate(gogglesJVM, gogglesJS)
-  .dependsOn(gogglesJVM, gogglesJS)
+  .aggregate(dslProject, macrosProject)
+  .dependsOn(dslProject, macrosProject)
 
-lazy val gogglesJVM = project.in(file(".gogglesJVM"))
-  .settings(commonSettings)
-  .settings(noPublishSettings)
-  .aggregate(dslProjectJVM, macrosProjectJVM)
-  .dependsOn(dslProjectJVM, macrosProjectJVM)
-
-lazy val gogglesJS = project.in(file(".gogglesJS"))
-  .settings(commonSettings)
-  .settings(noPublishSettings)
-  .aggregate(dslProjectJS, macrosProjectJS)
-  .dependsOn(dslProjectJS, macrosProjectJS)
-
-lazy val macrosProjectJVM = macrosProject.jvm
-lazy val macrosProjectJS = macrosProject.js
-lazy val macrosProject = (crossProject in file("macros")).
-  settings(
-    commonSettings,
-    libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-    libraryDependencies += monocleCore.value,
-    publishSettings,
-    moduleName := "goggles-macros",
-    scalacOptions += "-Yrangepos",
-    scalacOptions += "-language:experimental.macros"
-  ).
-  jvmSettings(
-    libraryDependencies ++= specs2Deps
-  )
+lazy val macrosProject = (project in file("macros")).settings(
+  commonSettings,
+  libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+  libraryDependencies += "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
+  libraryDependencies ++= specs2Deps,
+  publishSettings,
+  moduleName := "goggles-macros",
+  scalacOptions += "-Yrangepos",
+  scalacOptions += "-language:experimental.macros"
+)
 
 val specs2Version = "3.8.6"
 val specs2Deps = Seq(
@@ -54,28 +37,20 @@ val specs2Deps = Seq(
 )
 
 val monocleVersion = "1.5.0"
-val monocleCore = Def.setting("com.github.julien-truffaut" %%% "monocle-core" % monocleVersion)
+val monocleDeps = Seq(
+  "com.github.julien-truffaut"  %%  "monocle-core"    % monocleVersion
+)
 
-
-lazy val dslProjectJVM = dslProject.jvm
-lazy val dslProjectJS = dslProject.js
-lazy val dslProject = (crossProject in file("dsl")).
+lazy val dslProject = (project in file("dsl")).
   dependsOn(macrosProject).
   settings(
     commonSettings,
-    libraryDependencies += monocleCore.value,
+    libraryDependencies ++= monocleDeps,
+    libraryDependencies ++= specs2Deps,
     publishSettings,
     moduleName := "goggles-dsl",
     scalacOptions += "-Yrangepos",
-    scalacOptions += "-language:experimental.macros",
-    initialCommands := "import goggles._;",
-    initialCommands in Test := """
-      import goggles._;
-      import Fixture._;
-    """
-  ).
-  jvmSettings(
-    libraryDependencies ++= specs2Deps
+    scalacOptions += "-language:experimental.macros"
   )
 
 lazy val noPublishSettings = Seq(
@@ -134,3 +109,10 @@ val publishSettings = Seq(
     pushChanges
   )
 )
+
+initialCommands in dslProject := "import goggles._;"
+
+initialCommands in (dslProject, Test) := """
+  import goggles._;
+  import Fixture._;
+"""
