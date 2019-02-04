@@ -5,8 +5,8 @@ resolvers += Resolver.sonatypeRepo("snapshots")
 
 val commonSettings = Seq(
   organization := "com.github.kenbot",
-  scalaVersion in ThisBuild := "2.12.1",
-  crossScalaVersions := Seq("2.11.8", "2.12.1"),
+  scalaVersion in ThisBuild := "2.12.7",
+  crossScalaVersions := Seq("2.11.8", "2.12.7"),
   scalacOptions += "-Ywarn-unused-import",
   scalacOptions in (Compile, console) -= "-Ywarn-unused-import",
   scalacOptions in (Test, console) -= "-Ywarn-unused-import"
@@ -36,7 +36,7 @@ val specs2Deps = Seq(
   "org.specs2" %% "specs2-scalacheck" % specs2Version % "test"
 )
 
-val monocleVersion = "1.4.0"
+val monocleVersion = "1.5.0"
 val monocleDeps = Seq(
   "com.github.julien-truffaut"  %%  "monocle-core"    % monocleVersion
 )
@@ -56,8 +56,8 @@ lazy val dslProject = (project in file("dsl")).
   )
 
 lazy val noPublishSettings = Seq(
-  publish := (),
-  publishLocal := (),
+  publish := {},
+  publishLocal := {},
   publishArtifact := false
 )
     
