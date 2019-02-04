@@ -47,7 +47,7 @@ class ErrorOffsetSpec extends Specification with ScalaCheck {
 
     import Fixture._
     
-    def getName = testGet"$myBasket.BOGUS".lastSegmentOffset === 9
+    def getName = testGet"$myBasket.BOGUS".lastSegmentOffset === 14
     def getOptic = true === false
     def getOpticCurlies = true === false
     def getStar = true === false

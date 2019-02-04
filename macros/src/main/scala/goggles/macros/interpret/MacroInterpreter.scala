@@ -40,7 +40,8 @@ private[goggles] object MacroInterpreter {
         getter <- getterExpression(tree)
       } yield getter
 
-    MacroResult.tupled(finalTree.eval(args.toList))
+    val (errorOrTree, infos) = finalTree.eval(args.toList)
+    MacroResult(errorOrTree, infos, SourcePosition.getErrorOffset(DslMode.Get, infos))
   }
 
   def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): MacroResult[c.Type, c.Tree] = {
@@ -69,7 +70,8 @@ private[goggles] object MacroInterpreter {
         setter <- setterExpression(tree)
       } yield q"(new _root_.goggles.macros.MonocleModifyOps($setter))"
 
-    MacroResult.tupled(finalTree.eval(args.toList))
+    val (errorOrTree, infos) = finalTree.eval(args.toList)
+    MacroResult(errorOrTree, infos, SourcePosition.getErrorOffset(DslMode.Set, infos))
   }
 
   def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): MacroResult[c.Type, c.Tree] = {
@@ -85,7 +87,8 @@ private[goggles] object MacroInterpreter {
         tree <- interpretComposedLens(c)(ast, DslMode.Lens)
       } yield tree
 
-    MacroResult.tupled(finalTree.eval(args.toList))
+      val (errorOrTree, infos) = finalTree.eval(args.toList)
+      MacroResult(errorOrTree, infos, SourcePosition.getErrorOffset(DslMode.Lens, infos))
   }
 
   private def interpretComposedLens(c: whitebox.Context)(composedLens: ComposedLens, mode: DslMode): Parse[c.Type, c.Expr[Any], c.Tree] = {
