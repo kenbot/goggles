@@ -15,8 +15,6 @@ private[goggles] object SourcePosition {
     val openQuote = 1
     val prefix = verb + openQuote
 
-    infos.map(_.label).foreach(println)
-
     val skipLastDot = infos.lastOption.map { info => 
       if (info.label.startsWith(".")) 1 else 0
     }.getOrElse(0)
