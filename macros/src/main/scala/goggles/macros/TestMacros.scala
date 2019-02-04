@@ -2,7 +2,7 @@ package goggles.macros
 
 import goggles.macros.interpret.MacroResult
 import goggles.macros.errors._
-import goggles.macros.interpret.{OpticType, MacroInterpreter}
+import goggles.macros.interpret.{OpticType, MacroInterpreter, OpticInfo}
 import goggles.macros.lex.Token
 
 import scala.reflect.macros.whitebox
@@ -27,9 +27,6 @@ object TestMacros {
 
     import OpticType._
     import c.universe._
-
-    val result = macroResult.errorOrTree
-
 
     implicit val opticTypeLiftable = Liftable[OpticType] {
       case FoldType => q"_root_.goggles.macros.interpret.OpticType.FoldType"
@@ -96,10 +93,19 @@ object TestMacros {
       case NotEnoughArguments => q"_root_.goggles.macros.errors.NotEnoughArguments"
     }
 
-    result match {
-      case Right(tree) => q"_root_.scala.Right($tree)"
-      case Left(err) => q"_root_.scala.Left($err)"
+    implicit val eitherLiftable = Liftable[Either[GogglesError[c.Type],c.Tree]] {
+      case Left(left) => q"_root_.scala.Left($left)"
+      case Right(right) => q"_root_.scala.Right($right)"
     }
-  }
 
+    implicit val opticInfoLiftable = Liftable[OpticInfo[c.Type]] {
+      case OpticInfo(label, sourceType, targetType, opticType, compositeOpticType) => q"_root_.goggles.macros.interpret.OpticInfo[String]($label, ${typeStr(sourceType)}, ${typeStr(targetType)}, $opticType, $compositeOpticType)"
+    }
+
+    implicit val macroResultLiftable = Liftable[MacroResult[c.Type, c.Tree]] {
+      case MacroResult(errorOrTree, infos, lastSegmentOffset) => q"_root_.goggles.macros.interpret.MacroResult($errorOrTree, $infos, $lastSegmentOffset)"
+    }
+
+    q"$macroResult"
+  }
 }
