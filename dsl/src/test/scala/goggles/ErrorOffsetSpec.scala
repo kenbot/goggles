@@ -1,83 +1,70 @@
 package goggles
 
-import goggles.macros.errors._
-import goggles.macros.interpret.OpticType
-import goggles.macros.lex._
 import goggles.testdsl._
-import monocle.{Fold, Getter, Setter}
 import org.specs2._
-import OpticType._
-
-import Fixture._
-
-import scalaz.Monoid
 
 
 class ErrorOffsetSpec extends Specification with ScalaCheck {
 
-  def is = ???
+  def is = 
     s2"""
       A broken last segment should have the correct offset: 
-        get"$$obj.name" $getName
-                  ^
-        get"$$obj.$$optic" $getOptic
-                  ^
-        get"$$obj.$${optic}" $getOpticCurlies
-                  ^
-        get"$$obj*" $getStar
-                 ^
-        get"$$obj?" $getQ
-                 ^
-        get"$$obj[0]" $getIndex
-                 ^
-        get"$${obj}.name" $getCurliesName
-                    ^
-        get"$$obj[0].name" $getIndexLiteralName
-                     ^
-        get"$$obj[$$i].name" $getInterpIndexName
-                       ^
-        get"$$obj[$${i}].name" $getInterpIndexCurliesName
-                         ^
-        get"$$obj.$$optic.name" $getOpticName
-                          ^
-        get"$$obj.$${optic}.name" $getOpticCurliesName
-                            ^
-        get"$$obj.name1.name2" $getNameName
-                        ^
-        get"$$obj.name1*" $getNameStar
-                       ^
-        lens"$$optic.name" $lensOpticName
-                     ^
+        get"$$obj.^name" $getName
 
-        lens"$$optic*" $lensOpticStar
-                    ^
+        get"$$obj.^$$optic" $getOptic
+
+        get"$$obj.^$${optic}" $getOpticCurlies
+
+        get"$$obj^*" $getStar
+
+        get"$$obj^?" $getQ
+
+        get"$$obj^[0]" $getIndex
+
+        get"$${obj}.^name" $getCurliesName
+
+        get"$$obj[0].^name" $getIndexLiteralName
+
+        get"$$obj[$$i].^name" $getInterpIndexName
+
+        get"$$obj[$${i}].^name" $getInterpIndexCurliesName
+
+        get"$$obj.$$optic.^name" $getOpticName
+
+        get"$$obj.$${optic}.^name" $getOpticCurliesName
+
+        get"$$obj.name1.^name2" $getNameName
+
+        get"$$obj.name1^*" $getNameStar
+
+        lens"$$optic.^name" $lensOpticName
+
+        lens"$$optic^*" $lensOpticStar
+
         set"$$obj.name" $setName
         set"$$obj.name1.name2" $setNameName
     """
 
     import Fixture._
     
-    def getName = {
-      testGet"$myBasket.BOGUS"
-
-    }
-    def getOptic = ???
-    def getOpticCurlies = ???
-    def getStar = ???
-    def getQ = ???
-    def getIndex = ???
-    def getCurliesName = ???
-    def getIndexLiteralName = ???
-    def getInterpIndexName = ???
-    def getInterpIndexCurliesName = ???
-    def getOpticName = ???
-    def getOpticCurliesName = ???
-    def getNameName = ???
-    def getNameStar = ???
-    def lensOpticName = ???
-    def lensOpticStar = ???
-    def setName = ???
-    def setNameName = ???
+    def getName = testGet"$myBasket.BOGUS".lastSegmentOffset === 9
+    def getOptic = true === false
+    def getOpticCurlies = true === false
+    def getStar = true === false
+    def getQ = true === false
+    def getIndex = true === false
+    def getCurliesName = true === false
+    def getIndexLiteralName = true === false
+    def getInterpIndexName = true === false
+    def getInterpIndexCurliesName = true === false
+    def getOpticName = true === false
+    def getOpticCurliesName = true === false
+    def getNameName = true === false
+    def getNameStar = true === false
+    def lensOpticName = true === false
+    def lensOpticStar = true === false
+    def setName = true === false
+    def setNameName = true === false
 
 
 }

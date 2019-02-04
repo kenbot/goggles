@@ -1,8 +1,5 @@
 package goggles.macros.interpret
 
-import goggles.macros.parse.AST.LensExpr
-
-
 private[goggles] case class OpticInfo[+T](
   label: String,
   sourceType: T,
