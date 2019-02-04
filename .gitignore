@@ -2,3 +2,7 @@ target
 .idea
 *.swp
 *.sc
+
+.bloop/
+.metals/
+.vscode/
