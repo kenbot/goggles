@@ -41,8 +41,6 @@ val monocleDeps = Seq(
   "com.github.julien-truffaut"  %%  "monocle-core"    % monocleVersion
 )
 
-
-
 lazy val dslProject = (project in file("dsl")).
   dependsOn(macrosProject).
   settings(

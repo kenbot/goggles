@@ -24,8 +24,7 @@ private[goggles] object MacroInterpreter {
 
       for {
         info <- Parse.getLastOpticInfoOrElse[c.Type, c.Expr[Any]](OpticInfoNotFound(show(tree)))
-        verb <- Parse.fromOption(info.compositeOpticType.getVerb, GetterOpticRequired
-        (info.compositeOpticType))
+        verb <- Parse.fromOption(info.compositeOpticType.getVerb, GetterOpticRequired(info.compositeOpticType))
         postFix = info.compositeOpticType.getVerbPostfix
       } yield mungePostFix(q"($tree).${TermName(verb)}(())", postFix)
     }
