@@ -12,16 +12,16 @@ private[goggles] object Parser {
   import Token._
 
 
-  def parseAppliedLens(tokens: List[Token]): Either[SyntaxError, AppliedLens] = {
+  def parseAppliedLens(tokens: List[Token]): Either[SyntaxError, AppliedLensExpr] = {
     tokens match {
       case Nil => Left(EmptyError)
-      case Hole :: rest => parseComposedLens(rest).right.map(AppliedLens)
+      case Hole :: rest => parseComposedLens(rest).right.map(AppliedLensExpr)
       case Unrecognised(c) :: _ => Left(UnrecognisedChar(c))
       case tok :: _ => Left(NonInterpolatedStart(tok))
     }
   }
 
-  def parseUnappliedLens(tokens: List[Token]): Either[SyntaxError, ComposedLens] = {
+  def parseUnappliedLens(tokens: List[Token]): Either[SyntaxError, ComposedLensExpr] = {
     tokens match {
       case Nil => Left(EmptyError)
       case Hole :: rest => parseComposedLens(Dot :: Hole :: rest)
@@ -30,13 +30,13 @@ private[goggles] object Parser {
     }
   }
 
-  private def parseComposedLens(tokens: List[Token]): Either[SyntaxError, ComposedLens] = {
+  private def parseComposedLens(tokens: List[Token]): Either[SyntaxError, ComposedLensExpr] = {
 
-    def loop(remaining: List[Token], exprs: List[LensExpr]): Either[SyntaxError, ComposedLens] = {
+    def loop(remaining: List[Token], exprs: List[LensExpr]): Either[SyntaxError, ComposedLensExpr] = {
       parseLensExpr(remaining) match {
         case (Nil, Right(lensExpr)) =>
           val h :: t = (lensExpr :: exprs).reverse
-          Right(ComposedLens(NonEmptyList(h, t: _*)))
+          Right(ComposedLensExpr(NonEmptyList(h, t: _*)))
 
         case (rest, Right(lensExpr)) => loop(rest, lensExpr :: exprs) 
         case (_, Left(err)) => Left(err) 

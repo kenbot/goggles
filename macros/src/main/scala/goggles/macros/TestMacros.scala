@@ -1,8 +1,7 @@
 package goggles.macros
 
-import goggles.macros.interpret.MacroResult
 import goggles.macros.errors._
-import goggles.macros.interpret.{OpticType, MacroInterpreter, OpticInfo}
+import goggles.macros.interpret._
 import goggles.macros.lex.Token
 
 import scala.reflect.macros.whitebox
@@ -10,16 +9,19 @@ import scala.reflect.macros.whitebox
 
 object TestMacros {
 
-  def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.getImpl(c)(args: _*))
+  def getImpl(ctx: whitebox.Context)(args: ctx.Expr[Any]*): ctx.Tree = {
+    val interpreter = new GetModeImpl { override val c: ctx.type = ctx; }
+    handleResult(ctx)(interpreter.get(args: _*))
   }
 
-  def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.setImpl(c)(args: _*))
+  def setImpl(ctx: whitebox.Context)(args: ctx.Expr[Any]*): ctx.Tree = {
+    val interpreter = new SetModeImpl { override val c: ctx.type = ctx; }
+    handleResult(ctx)(interpreter.set(args: _*))
   }
 
-  def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.lensImpl(c)(args: _*))
+  def lensImpl(ctx: whitebox.Context)(args: ctx.Expr[Any]*): ctx.Tree = {
+    val interpreter = new LensModeImpl { override val c: ctx.type = ctx; }
+    handleResult(ctx)(interpreter.lens(args: _*))
   }
 
   private def handleResult(c: whitebox.Context)(
