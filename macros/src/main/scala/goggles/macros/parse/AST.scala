@@ -4,13 +4,13 @@ import scalaz.NonEmptyList
 
 private[goggles] object AST {
 
-  case class ComposedLens(exprs: NonEmptyList[LensExpr]) {
+  case class ComposedLensExpr(exprs: NonEmptyList[LensExpr]) {
     def head: LensExpr = exprs.head
     def tail: List[LensExpr] = exprs.tail.toList
     def toList: List[LensExpr] = exprs.list.toList
   }
 
-  case class AppliedLens(lens: ComposedLens)
+  case class AppliedLensExpr(lens: ComposedLensExpr)
 
   sealed trait LensExpr
   case class RefExpr(lens: LensRef) extends LensExpr

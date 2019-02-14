@@ -1,23 +1,26 @@
 package goggles.macros
 
 import goggles.macros.errors.ErrorMessages
-import goggles.macros.interpret.{MacroResult, MacroInterpreter, DslMode}
+import goggles.macros.interpret._
 
 import scala.reflect.macros.whitebox
 
 
 object GogglesMacros {
 
-  def getImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.getImpl(c)(args: _*), DslMode.Get)
+  def getImpl(ctx: whitebox.Context)(args: ctx.Expr[Any]*): ctx.Tree = {
+    val interpreter = new GetModeImpl { override val c: ctx.type = ctx; }
+    handleResult(ctx)(interpreter.get(args: _*), interpreter.mode)
   }
 
-  def setImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.setImpl(c)(args: _*), DslMode.Set)
+  def setImpl(ctx: whitebox.Context)(args: ctx.Expr[Any]*): ctx.Tree = {
+    val interpreter = new SetModeImpl { override val c: ctx.type = ctx; }
+    handleResult(ctx)(interpreter.set(args: _*), interpreter.mode)
   }
 
-  def lensImpl(c: whitebox.Context)(args: c.Expr[Any]*): c.Tree = {
-    handleResult(c)(MacroInterpreter.lensImpl(c)(args: _*), DslMode.Lens)
+  def lensImpl(ctx: whitebox.Context)(args: ctx.Expr[Any]*): ctx.Tree = {
+    val interpreter = new LensModeImpl { override val c: ctx.type = ctx; }
+    handleResult(ctx)(interpreter.lens(args: _*), interpreter.mode)
   }
 
   private def handleResult(c: whitebox.Context)(
