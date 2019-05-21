@@ -4,7 +4,6 @@ import goggles.macros.errors._
 import goggles.macros.lex.Token
 
 import scala.util.{Try, Success, Failure}
-import scalaz.{Name => _, NonEmptyList}
 
 
 private[goggles] object Parser {
@@ -12,10 +11,10 @@ private[goggles] object Parser {
   import Token._
 
 
-  def parseAppliedLens(tokens: List[Token]): Either[SyntaxError, AppliedLensExpr] = {
+  def parseAppliedLens(tokens: List[Token]): Either[SyntaxError, ComposedLensExpr] = {
     tokens match {
       case Nil => Left(EmptyError)
-      case Hole :: rest => parseComposedLens(rest).right.map(AppliedLensExpr)
+      case Hole :: rest => parseComposedLens(rest)
       case Unrecognised(c) :: _ => Left(UnrecognisedChar(c))
       case tok :: _ => Left(NonInterpolatedStart(tok))
     }
@@ -35,8 +34,8 @@ private[goggles] object Parser {
     def loop(remaining: List[Token], exprs: List[LensExpr]): Either[SyntaxError, ComposedLensExpr] = {
       parseLensExpr(remaining) match {
         case (Nil, Right(lensExpr)) =>
-          val h :: t = (lensExpr :: exprs).reverse
-          Right(ComposedLensExpr(NonEmptyList(h, t: _*)))
+          val list = (lensExpr :: exprs).reverse
+          Right(ComposedLensExpr(list.head, list.tail))
 
         case (rest, Right(lensExpr)) => loop(rest, lensExpr :: exprs) 
         case (_, Left(err)) => Left(err) 

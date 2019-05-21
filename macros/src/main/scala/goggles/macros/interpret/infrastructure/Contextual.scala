@@ -1,5 +1,6 @@
-package goggles.macros.interpret
+package goggles.macros.interpret.infrastructure
 
+import goggles.macros.interpret.Parse
 import scala.reflect.macros.whitebox
 
 trait Contextual {

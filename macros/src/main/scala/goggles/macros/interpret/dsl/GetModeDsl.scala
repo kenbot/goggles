@@ -1,16 +1,18 @@
-package goggles.macros.interpret
+package goggles.macros.interpret.dsl
 
+import goggles.macros.interpret._
 import goggles.macros.interpret.features._
+import goggles.macros.interpret.infrastructure._
 import goggles.macros.lex._
 import goggles.macros.parse._
 import goggles.macros.errors._
 
-trait GetModeImpl extends GetModeInterpreter 
+trait GetModeDslImpl extends GetModeDsl
   with Contextual 
   with DslModeContext
   with StringContextInterpreter
   with LensExprInterpreter
-  with InterpreterTools
+  with InterpreterActions
   with EachFeature
   with IndexFeature
   with InterpolatedLensRefFeature
@@ -19,7 +21,7 @@ trait GetModeImpl extends GetModeInterpreter
 
 
 
-class GetModeInterpreter  {
+class GetModeDsl  {
   self: Contextual with DslModeContext
                    with StringContextInterpreter 
                    with LensExprInterpreter =>
@@ -30,20 +32,20 @@ class GetModeInterpreter  {
   override def mode: DslMode = DslMode.Get
 
   def get(args: c.Expr[Any]*): MacroResult[c.Type, c.Tree] = {
-    val errorOrAst: Either[GogglesError[c.Type], AppliedLensExpr] =
+    val errorOrAst: Either[GogglesError[c.Type], ComposedLensExpr] =
       Parser.parseAppliedLens(Lexer(contextStringParts))
 
     val finalTree =
       for {
         ast <- Parse.fromEither(errorOrAst)
-        tree <- interpretComposedLensExpr(ast.lens)
+        tree <- interpretComposedLensExpr(ast)
         info <- Parse.getLastOpticInfoOrElse[c.Type, c.Expr[Any]](OpticInfoNotFound(show(tree)))
         verb <- Parse.fromOption(info.compositeOpticType.getVerb, GetterOpticRequired(info.compositeOpticType))
         postFix = info.compositeOpticType.getVerbPostfix
       } yield mungePostFix(q"($tree).${TermName(verb)}(())", postFix)
 
-    val (errorOrTree, infos) = finalTree.eval(args.toList)
-    MacroResult(errorOrTree, infos, SourcePosition.getErrorOffset(mode, infos))
+    val (errorOrTree, macroState) = finalTree.eval(args.toList)
+    MacroResult(errorOrTree, macroState.infos, Nil, SourcePosition.getErrorOffset(mode, macroState))
   }
 
   private def mungePostFix(tree: c.Tree, pfix: Option[String]): c.Tree =

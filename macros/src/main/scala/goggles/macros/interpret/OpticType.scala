@@ -88,7 +88,7 @@ private[goggles] sealed abstract class OpticType(
   }
 }
 
-private[goggles] object OpticType {
+object OpticType {
   val all = List(FoldType, Fold1Type, GetterType, SetterType,
     TraversalType, OptionalType, PrismType,
     LensType, IsoType)

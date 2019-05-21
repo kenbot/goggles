@@ -113,4 +113,5 @@ initialCommands in dslProject := "import goggles._;"
 initialCommands in (dslProject, Test) := """
   import goggles._;
   import Fixture._;
+  import testdsl._;
 """

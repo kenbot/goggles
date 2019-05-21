@@ -4,13 +4,15 @@ import goggles.macros.parse.AST._
 
 import scala.reflect.macros.whitebox
 
-private[goggles] object SourcePosition {
-  def getErrorOffset(mode: DslMode, infos: List[OpticInfo[_]]): Int = {
+object SourcePosition {
+  def getErrorOffset(mode: DslMode, macroState: MacroState[_,_]): Int = {
     import DslMode._
     val verb = mode match {
       case Get | Set => 3
       case Lens => 4
     }
+
+    val infos = macroState.infos
 
     val openQuote = 1
     val prefix = verb + openQuote

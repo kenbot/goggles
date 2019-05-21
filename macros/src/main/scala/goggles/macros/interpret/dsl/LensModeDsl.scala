@@ -1,16 +1,18 @@
-package goggles.macros.interpret
+package goggles.macros.interpret.dsl
 
+import goggles.macros.interpret._
 import goggles.macros.interpret.features._
+import goggles.macros.interpret.infrastructure._
 import goggles.macros.lex._
 import goggles.macros.parse._
 import goggles.macros.errors._
 
-trait LensModeImpl extends LensModeInterpreter 
+trait LensModeDslImpl extends LensModeDsl
   with Contextual 
   with DslModeContext
   with StringContextInterpreter
   with LensExprInterpreter
-  with InterpreterTools
+  with InterpreterActions
   with EachFeature
   with IndexFeature
   with InterpolatedLensRefFeature
@@ -18,7 +20,7 @@ trait LensModeImpl extends LensModeInterpreter
   with PossibleFeature
 
 
-class LensModeInterpreter  {
+class LensModeDsl  {
   this: Contextual with StringContextInterpreter 
                    with DslModeContext 
                    with LensExprInterpreter => 
@@ -40,8 +42,8 @@ class LensModeInterpreter  {
         tree <- interpretComposedLensExpr(ast)
       } yield tree
 
-      val (errorOrTree, infos) = finalTree.eval(args.toList)
-      MacroResult(errorOrTree, infos, SourcePosition.getErrorOffset(DslMode.Lens, infos))
+      val (errorOrTree, macroState) = finalTree.eval(args.toList)
+      MacroResult(errorOrTree, macroState.infos, Nil, SourcePosition.getErrorOffset(mode, macroState))
   }
 
 }

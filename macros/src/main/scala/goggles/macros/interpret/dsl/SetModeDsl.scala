@@ -1,16 +1,18 @@
-package goggles.macros.interpret
+package goggles.macros.interpret.dsl
 
+import goggles.macros.interpret._
 import goggles.macros.interpret.features._
+import goggles.macros.interpret.infrastructure._
 import goggles.macros.lex._
 import goggles.macros.parse._
 import goggles.macros.errors._
 
-trait SetModeImpl extends SetModeInterpreter 
+trait SetModeDslImpl extends SetModeDsl
   with Contextual 
   with DslModeContext
   with StringContextInterpreter
   with LensExprInterpreter
-  with InterpreterTools
+  with InterpreterActions
   with EachFeature
   with IndexFeature
   with InterpolatedLensRefFeature
@@ -18,7 +20,7 @@ trait SetModeImpl extends SetModeInterpreter
   with PossibleFeature
 
 
-class SetModeInterpreter  {
+class SetModeDsl  {
   this: Contextual with StringContextInterpreter 
                    with DslModeContext 
                    with LensExprInterpreter => 
@@ -40,18 +42,18 @@ class SetModeInterpreter  {
       } yield tree
     }
 
-    val errorOrAst: Either[GogglesError[c.Type], AppliedLensExpr] =
+    val errorOrAst: Either[GogglesError[c.Type], ComposedLensExpr] =
       Parser.parseAppliedLens(Lexer(contextStringParts))
 
     val finalTree: Interpret[c.Tree] =
       for {
         ast <- Parse.fromEither(errorOrAst)
-        tree <- interpretComposedLensExpr(ast.lens)
+        tree <- interpretComposedLensExpr(ast)
         setter <- setterExpression(tree)
       } yield q"(new _root_.goggles.macros.MonocleModifyOps($setter))"
 
-    val (errorOrTree, infos) = finalTree.eval(args.toList)
-    MacroResult(errorOrTree, infos, SourcePosition.getErrorOffset(mode, infos))
+      val (errorOrTree, macroState) = finalTree.eval(args.toList)
+      MacroResult(errorOrTree, macroState.infos, Nil, SourcePosition.getErrorOffset(mode, macroState))
   }
 
 
