@@ -1,16 +1,13 @@
 package goggles.macros.interpret.features
 
-import goggles.macros.interpret._
+import goggles.macros.interpret.infrastructure.{Contextual, InterpreterActions}
+import goggles.macros.interpret.{Parse, OpticType}
 import goggles.macros.errors._
 
 trait IndexFeature {
-  self: Contextual with InterpreterTools =>
+  self: Contextual with InterpreterActions =>
 
   import c.universe._
-
-  //case IndexedExpr(LiteralIndex(i)) => interpretIndex(q"$i", s"[$i]", typeOf[Int])
- // case IndexedExpr(InterpIndex) => Parse.popArg.flatMap { i =>
-  //  interpretIndex(i.tree, s"[${getArgLabel(i.tree)}]", i.actualType)
 
   def interpretLiteralIndex(i: Int): Interpret[c.Tree] = 
     interpretIndex(q"$i", s"[$i]", typeOf[Int])

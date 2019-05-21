@@ -1,11 +1,12 @@
-package goggles.macros.interpret
+package goggles.macros.interpret.infrastructure
 
+import goggles.macros.interpret._
 import goggles.macros.interpret.features._
 import goggles.macros.parse._
 import goggles.macros.errors._
 
 trait LensExprInterpreter {
-    self: Contextual with InterpreterTools 
+    self: Contextual with InterpreterActions 
                      with DslModeContext
                      with NamedLensRefFeature 
                      with InterpolatedLensRefFeature 
@@ -18,7 +19,7 @@ trait LensExprInterpreter {
   
     def interpretComposedLensExpr(composedLens: ComposedLensExpr): Interpret[c.Tree] = {
       val (initCode, lensExprs) =
-        if (mode.appliedToObject) (interpretSource, composedLens.toList)
+        if (mode.appliedToObject) (interpretSource, composedLens.exprs)
         else (interpretLensExpr(composedLens.head), composedLens.tail)
   
       initCode.flatMap(composeAll(_, lensExprs))

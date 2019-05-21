@@ -1,5 +1,4 @@
-package goggles.macros.interpret
-
+package goggles.macros.interpret.infrastructure
 
 trait StringContextInterpreter {
   self: Contextual =>

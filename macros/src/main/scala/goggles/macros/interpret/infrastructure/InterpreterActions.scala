@@ -1,7 +1,9 @@
-package goggles.macros.interpret
+package goggles.macros.interpret.infrastructure
+
+import goggles.macros.interpret._
 import goggles.macros.errors._
 
-trait InterpreterTools {
+trait InterpreterActions {
     this: Contextual => 
   
     def typeCheckOrElse(tree: c.Tree, orElse: => GogglesError[c.Type]): Interpret[c.Tree] = {

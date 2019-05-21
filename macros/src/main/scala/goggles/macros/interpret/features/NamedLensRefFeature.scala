@@ -1,11 +1,12 @@
 package goggles.macros.interpret.features
 
-import goggles.macros.interpret._
+import goggles.macros.interpret.infrastructure.{Contextual, InterpreterActions, DslModeContext}
+import goggles.macros.interpret.{Parse, DslMode}
 import goggles.macros.errors._
 
 trait NamedLensRefFeature {
   self: Contextual with DslModeContext 
-                   with InterpreterTools =>
+                   with InterpreterActions =>
 
   import c.universe._
 

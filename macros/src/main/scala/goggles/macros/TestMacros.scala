@@ -1,8 +1,10 @@
 package goggles.macros
 
 import goggles.macros.errors._
-import goggles.macros.interpret._
+import goggles.macros.interpret.dsl.{GetModeDslImpl, SetModeDslImpl, LensModeDslImpl}
+import goggles.macros.interpret.{MacroResult, OpticType, OpticInfo}
 import goggles.macros.lex.Token
+import goggles.macros.parse.AST._
 
 import scala.reflect.macros.whitebox
 
@@ -10,17 +12,17 @@ import scala.reflect.macros.whitebox
 object TestMacros {
 
   def getImpl(ctx: whitebox.Context)(args: ctx.Expr[Any]*): ctx.Tree = {
-    val interpreter = new GetModeImpl { override val c: ctx.type = ctx; }
+    val interpreter = new GetModeDslImpl { override val c: ctx.type = ctx; }
     handleResult(ctx)(interpreter.get(args: _*))
   }
 
   def setImpl(ctx: whitebox.Context)(args: ctx.Expr[Any]*): ctx.Tree = {
-    val interpreter = new SetModeImpl { override val c: ctx.type = ctx; }
+    val interpreter = new SetModeDslImpl { override val c: ctx.type = ctx; }
     handleResult(ctx)(interpreter.set(args: _*))
   }
 
   def lensImpl(ctx: whitebox.Context)(args: ctx.Expr[Any]*): ctx.Tree = {
-    val interpreter = new LensModeImpl { override val c: ctx.type = ctx; }
+    val interpreter = new LensModeDslImpl { override val c: ctx.type = ctx; }
     handleResult(ctx)(interpreter.lens(args: _*))
   }
 
@@ -29,6 +31,15 @@ object TestMacros {
 
     import OpticType._
     import c.universe._
+
+    implicit val lensExprLiftable = Liftable[LensExpr] {
+      case RefExpr(NamedLensRef(name)) => q"_root_.goggles.macros.parse.AST.RefExpr(_root_.goggles.macros.parse.AST.NamedLensRef($name))"
+      case RefExpr(InterpLensRef) => q"_root_.goggles.macros.parse.AST.RefExpr(_root_.goggles.macros.parse.AST.InterpLensRef)"
+      case EachExpr => q"_root_.goggles.macros.parse.AST.EachExpr"
+      case OptExpr => q"_root_.goggles.macros.parse.AST.OptExpr"
+      case IndexedExpr(LiteralIndex(i)) => q"_root_.goggles.macros.parse.AST.IndexedExpr(_root_.goggles.macros.parse.AST.LiteralIndex($i))"
+      case IndexedExpr(InterpIndex) => q"_root_.goggles.macros.parse.AST.IndexedExpr(_root_.goggles.macros.parse.AST.InterpIndex)"
+    }
 
     implicit val opticTypeLiftable = Liftable[OpticType] {
       case FoldType => q"_root_.goggles.macros.interpret.OpticType.FoldType"
@@ -105,7 +116,7 @@ object TestMacros {
     }
 
     implicit val macroResultLiftable = Liftable[MacroResult[c.Type, c.Tree]] {
-      case MacroResult(errorOrTree, infos, lastSegmentOffset) => q"_root_.goggles.macros.interpret.MacroResult($errorOrTree, $infos, $lastSegmentOffset)"
+      case MacroResult(errorOrTree, infos, remainingExprs, lastSegmentOffset) => q"_root_.goggles.macros.interpret.MacroResult($errorOrTree, $infos, $remainingExprs, $lastSegmentOffset)"
     }
 
     q"$macroResult"

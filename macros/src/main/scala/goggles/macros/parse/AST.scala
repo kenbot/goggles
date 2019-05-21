@@ -1,16 +1,10 @@
 package goggles.macros.parse
 
-import scalaz.NonEmptyList
-
 private[goggles] object AST {
 
-  case class ComposedLensExpr(exprs: NonEmptyList[LensExpr]) {
-    def head: LensExpr = exprs.head
-    def tail: List[LensExpr] = exprs.tail.toList
-    def toList: List[LensExpr] = exprs.list.toList
+  case class ComposedLensExpr(val head: LensExpr, val tail: List[LensExpr]) {
+    def exprs: List[LensExpr] = head :: tail
   }
-
-  case class AppliedLensExpr(lens: ComposedLensExpr)
 
   sealed trait LensExpr
   case class RefExpr(lens: LensRef) extends LensExpr
