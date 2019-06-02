@@ -42,18 +42,17 @@ class SetModeDsl  {
       } yield tree
     }
 
-    val errorOrAst: Either[GogglesError[c.Type], ComposedLensExpr] =
+    val lensExprs: Either[GogglesError[c.Type], ComposedLensExpr] =
       Parser.parseAppliedLens(Lexer(contextStringParts))
 
     val finalTree: Interpret[c.Tree] =
       for {
-        ast <- Parse.fromEither(errorOrAst)
-        tree <- interpretComposedLensExpr(ast)
+        _ <- Parse.loadLensExprs(lensExprs)
+        tree <- interpretComposedLensExpr
         setter <- setterExpression(tree)
       } yield q"(new _root_.goggles.macros.MonocleModifyOps($setter))"
 
-      val (errorOrTree, macroState) = finalTree.eval(args.toList)
-      MacroResult(errorOrTree, macroState.infos, Nil, SourcePosition.getErrorOffset(mode, macroState))
+    finalTree.eval(args.toList, mode)
   }
 
 

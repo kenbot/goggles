@@ -6,6 +6,7 @@ import scala.reflect.macros.whitebox
 
 object SourcePosition {
   def getErrorOffset(mode: DslMode, macroState: MacroState[_,_]): Int = {
+
     import DslMode._
     val verb = mode match {
       case Get | Set => 3
@@ -13,15 +14,18 @@ object SourcePosition {
     }
 
     val infos = macroState.infos
-
     val openQuote = 1
     val prefix = verb + openQuote
 
-    val skipLastDot = infos.lastOption.map { info => 
-      if (info.label.startsWith(".")) 1 else 0
-    }.getOrElse(0)
+    val skipSyntax = macroState.currentLensExpr match {
+      case Some(RefExpr(NamedLensRef(name))) => 1   // .
+      case Some(RefExpr(InterpLensRef)) => 2        // .$
+      case Some(IndexedExpr(LiteralIndex(_))) => 1  // [
+      case Some(IndexedExpr(InterpIndex)) => 2      // [$
+      case _ => 0
+    }
 
-    prefix + infos.foldLeft(0)(_ + _.label.size) + skipLastDot
+    prefix + infos.foldLeft(0)(_ + _.label.size) + skipSyntax
   }
 
   def getSegmentWidth(expr: LensExpr): Int = {
@@ -32,7 +36,7 @@ object SourcePosition {
       case RefExpr(InterpLensRef) => dot + 0 
       case EachExpr => 1
       case OptExpr => 1
-      case IndexedExpr(LiteralIndex(i)) => brackets + i.toString.length 
+      case IndexedExpr(LiteralIndex(i)) => brackets + i.toString.length
       case IndexedExpr(InterpIndex) => brackets + 0 
     }
   }

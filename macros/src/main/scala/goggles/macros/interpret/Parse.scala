@@ -1,9 +1,7 @@
 package goggles.macros.interpret
 
-import goggles.macros.errors.{GogglesError, NotEnoughArguments}
-
-import scalaz._
-
+import goggles.macros.errors.{GogglesError, NotEnoughArguments, EmptyError}
+import goggles.macros.parse.AST.{ComposedLensExpr, LensExpr}
 
 private[goggles] trait Parse[Type, Arg, A] {
   self =>
@@ -24,14 +22,14 @@ private[goggles] trait Parse[Type, Arg, A] {
     }
   }
 
-  final def eval(args: List[Arg]): (Either[GogglesError[Type],A], MacroState[Type,Arg]) = {
-    val (errorOrA, macroState) = apply(MacroState(args, Nil, 0))
-    (errorOrA, macroState)
+  final def eval(args: List[Arg], mode: DslMode): MacroResult[Type, A] = {
+    val (errorOrA, macroState) = apply(MacroState(args, None, Nil, Nil, 0))
+    MacroResult(errorOrA, macroState.infos, macroState.remainingLensExprs, SourcePosition.getErrorOffset(mode, macroState))
   }
 }
 
 private[goggles] object Parse {
-  def pure[Type,Arg,A](a: => A): Parse[Type,Arg,A] = 
+  def pure[Type, Arg, A](a: => A): Parse[Type,Arg,A] = 
     state => (Right(a), state)
 
   def fromOption[Type, Arg, A](opt: Option[A], orElse: => GogglesError[Type]): Parse[Type, Arg, A] = opt match {
@@ -39,7 +37,19 @@ private[goggles] object Parse {
     case None => raiseError(orElse)
   }
 
-  def fromEither[Type, Arg, A](either: Either[GogglesError[Type],A]): Parse[Type,Arg,A] = 
+  def loadLensExprs[Type, Arg](either: Either[GogglesError[Type], ComposedLensExpr]): Parse[Type,Arg,Unit] = {
+    state0 => 
+      val state = either match {
+        case Left(err) => state0
+        case Right(composedLensExpr) => state0.copy(remainingLensExprs = composedLensExpr.exprs)
+      }
+      (either.map(_ => ()), state)
+  }
+
+  def getMacroState[Type, Arg]: Parse[Type, Arg, MacroState[Type, Arg]] = 
+    state => (Right(state), state)
+
+  def fromEither[Type, Arg, A](either: Either[GogglesError[Type], A]): Parse[Type,Arg,A] = 
     state => (either, state)
 
   def raiseError[Type, Arg, A](e: GogglesError[Type]): Parse[Type, Arg, A] = 
@@ -65,11 +75,24 @@ private[goggles] object Parse {
     }
   }
 
+  def popLensExprMaybe[Type, Arg]: Parse[Type, Arg, Option[LensExpr]] = {
+    state0 => state0.popLensExpr match {
+      case Some((lensExpr, state)) => (Right(Some(lensExpr)), state)
+      case None => (Right(None), state0)
+    }
+  }
+
+  def popLensExpr[Type, Arg]: Parse[Type, Arg, LensExpr] = {
+    state0 => state0.popLensExpr match {
+      case Some((lensExpr, state)) => (Right(lensExpr), state)
+      case None => (Left(EmptyError), state0)
+    }
+  }
+
+  def remainingLensExprs[Type, Arg]: Parse[Type, Arg, List[LensExpr]] = {
+    state => (Right(state.remainingLensExprs), state)
+  }
+
   def addToOffset[Type, Arg](delta: Int): Parse[Type, Arg, Unit] = 
     state => (Right(()), state.addToOffset(delta))
-
-  implicit def monad[Type,Arg] = new Monad[({type f[a]=Parse[Type,Arg,a]})#f] {
-    override def bind[A, B](fa: Parse[Type,Arg,A])(f: A => Parse[Type,Arg,B]): Parse[Type,Arg,B] = fa.flatMap(f)
-    override def point[A](a: => A): Parse[Type,Arg,A] = pure(a)
-  }
 }
