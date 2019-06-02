@@ -11,9 +11,9 @@ class ErrorOffsetSpec extends Specification with ScalaCheck {
       A broken last segment should have the correct offset: 
         get"$$obj.^name" $getName
 
-        get"$$obj.^$$optic" $getOptic
+        get"$$obj.$$^optic" $getOptic
 
-        get"$$obj.^$${optic}" $getOpticCurlies
+        get"$$obj.$${^bogusOptic}" $getOpticCurlies
 
         get"$$obj^*" $getStar
 
@@ -47,24 +47,27 @@ class ErrorOffsetSpec extends Specification with ScalaCheck {
 
     import Fixture._
     
+    val notAnOptic = 473
+    val zero = 0
+
     def getName = testGet"$myBasket.BOGUS".lastSegmentOffset === 14
-    def getOptic = true === false
-    def getOpticCurlies = true === false
-    def getStar = true === false
-    def getQ = true === false
-    def getIndex = true === false
-    def getCurliesName = true === false
-    def getIndexLiteralName = true === false
-    def getInterpIndexName = true === false
-    def getInterpIndexCurliesName = true === false
-    def getOpticName = true === false
-    def getOpticCurliesName = true === false
-    def getNameName = true === false
-    def getNameStar = true === false
-    def lensOpticName = true === false
-    def lensOpticStar = true === false
-    def setName = true === false
-    def setNameName = true === false
+    def getOptic = testGet"$myBasket.$notAnOptic".lastSegmentOffset === 15
+    def getOpticCurlies = testGet"$myBasket.${notAnOptic}".lastSegmentOffset === 16
+    def getStar = testGet"$myBasket*".lastSegmentOffset === 13
+    def getQ = testGet"$myBasket?".lastSegmentOffset === 13
+    def getIndex = testGet"$myBasket[0]".lastSegmentOffset === 14
+    def getCurliesName = testGet"${myBasket}.BOGUS".lastSegmentOffset === 16
+    def getIndexLiteralName = testGet"$myItemList[0].BOGUS".lastSegmentOffset === 19
+    def getInterpIndexName = testGet"$myItemList[$zero].BOGUS".lastSegmentOffset === 23
+    def getInterpIndexCurliesName = testGet"$myItemList[${zero}].BOGUS".lastSegmentOffset === 25
+    def getOpticName = testGet"$myBasket.$basketItems.BOGUS".lastSegmentOffset === 27
+    def getOpticCurliesName = testGet"$myBasket.${basketItems}.BOGUS".lastSegmentOffset === 29
+    def getNameName = testGet"$myBasket.items.BOGUS".lastSegmentOffset === 20
+    def getNameStar = testGet"$myBasket.user*".lastSegmentOffset === 18
+    def lensOpticName = testLens"$basketUser.BOGUS".lastSegmentOffset === 18
+    def lensOpticStar = testLens"$basketUser*".lastSegmentOffset === 17
+    def setName = testSet"$myBasket.BOGUS".lastSegmentOffset === 14
+    def setNameName = testSet"$myBasket.items.BOGUS".lastSegmentOffset === 20
 
 
 }

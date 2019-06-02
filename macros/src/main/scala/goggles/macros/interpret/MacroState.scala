@@ -1,7 +1,11 @@
 package goggles.macros.interpret
 
+import goggles.macros.parse.AST.LensExpr
+
 private[goggles] case class MacroState[+Type,+Arg](
   args: List[Arg], 
+  currentLensExpr: Option[LensExpr],
+  remainingLensExprs: List[LensExpr],
   reversedInfos: List[OpticInfo[Type]], 
   offset: Int) {
 
@@ -16,6 +20,11 @@ private[goggles] case class MacroState[+Type,+Arg](
 
   def popArg: Option[(Arg, MacroState[Type, Arg])] = args match {
     case head :: tail => Some((head, copy(args = tail)))
+    case Nil => None
+  }
+
+  def popLensExpr: Option[(LensExpr, MacroState[Type, Arg])] = remainingLensExprs match {
+    case head :: tail => Some((head, copy(currentLensExpr = Some(head), remainingLensExprs = tail)))
     case Nil => None
   }
 

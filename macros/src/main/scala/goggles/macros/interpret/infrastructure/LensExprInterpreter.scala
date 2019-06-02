@@ -17,14 +17,36 @@ trait LensExprInterpreter {
     import c.universe._
     import AST._
   
-    def interpretComposedLensExpr(composedLens: ComposedLensExpr): Interpret[c.Tree] = {
-      val (initCode, lensExprs) =
-        if (mode.appliedToObject) (interpretSource, composedLens.exprs)
-        else (interpretLensExpr(composedLens.head), composedLens.tail)
+    def interpretComposedLensExpr: Interpret[c.Tree] = {
+      val initCode: Interpret[c.Tree] = 
+        if (mode.appliedToObject) interpretSourceObject
+        else Parse.popLensExpr.flatMap(interpretLensExpr)
   
-      initCode.flatMap(composeAll(_, lensExprs))
+      initCode.flatMap(compose)
     }
-  
+
+    private def interpretSourceObject: Interpret[c.Tree] = {
+      for {
+        arg <- Parse.popArg[c.Type, c.Expr[Any]]
+        _ <- Parse.storeOpticInfo(OpticInfo(getArgLabel(arg.tree), typeOf[Unit], arg.actualType, OpticType.IsoType, OpticType.IsoType))
+      } yield q"_root_.goggles.macros.AppliedObject.const($arg)"
+    }
+
+    private def compose(codeSoFar: c.Tree): Interpret[c.Tree] = {
+      Parse.popLensExprMaybe[c.Type, c.Expr[Any]].flatMap {
+        case None => Parse.pure(codeSoFar)
+        case Some(lensExpr) => 
+          for {
+            lastInfo <- getLastOpticInfo(show(codeSoFar))
+            nextLensCode <- interpretLensExpr(lensExpr)
+            thisInfo <- getLastOpticInfo(show(nextLensCode))
+            tree = q"($codeSoFar).${TermName(thisInfo.opticType.composeVerb)}($nextLensCode)"
+            checkedTree <- typeCheckOrElse(tree, TypesDontMatch(thisInfo.label, thisInfo.sourceType, thisInfo.targetType, lastInfo.targetType, thisInfo.sourceType))
+            nextTree <- compose(checkedTree)
+          } yield nextTree
+      }
+    }
+
     private def interpretLensExpr(lexpr: LensExpr): Interpret[c.Tree] = {
       lexpr match {
         case RefExpr(NamedLensRef(name)) => interpretNamedLensRef(name)
@@ -34,29 +56,5 @@ trait LensExprInterpreter {
         case IndexedExpr(LiteralIndex(i)) => interpretLiteralIndex(i)
         case IndexedExpr(InterpIndex) => interpretInterpolatedIndex
       }
-    }
-  
-    private def interpretSource: Interpret[c.Tree] = {
-      for {
-        arg <- Parse.popArg[c.Type, c.Expr[Any]]
-        _ <- Parse.storeOpticInfo(OpticInfo(getArgLabel(arg.tree), typeOf[Unit], arg.actualType, OpticType.IsoType, OpticType.IsoType))
-      } yield q"_root_.goggles.macros.AppliedObject.const($arg)"
-    }
-  
-    private def composeAll(code: c.Tree, lensExprs: List[LensExpr]): Interpret[c.Tree] = {
-      lensExprs match {
-        case lx :: lxs => compose(code, lx).flatMap(composeAll(_, lxs))
-        case Nil => Parse.pure(code)
-      }
-    }
-  
-    private def compose(codeSoFar: c.Tree, lensExpr: LensExpr): Interpret[c.Tree] = {
-      for {
-        lastInfo <- getLastOpticInfo(show(codeSoFar))
-        nextLensCode <- interpretLensExpr(lensExpr)
-        thisInfo <- getLastOpticInfo(show(nextLensCode))
-        tree = q"($codeSoFar).${TermName(thisInfo.opticType.composeVerb)}($nextLensCode)"
-        checkedTree <- typeCheckOrElse(tree, TypesDontMatch(thisInfo.label, thisInfo.sourceType, thisInfo.targetType, lastInfo.targetType, thisInfo.sourceType))
-      } yield checkedTree
     }
   }
