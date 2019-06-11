@@ -1,11 +1,12 @@
 package goggles
 
-import goggles.macros.errors._
+import goggles.macros.errors.{SyntaxError, UserError}
 import goggles.macros.interpret.OpticType
-import goggles.macros.lex._
+import goggles.macros.lex.Token
 import goggles.testdsl._
 import monocle.{Fold, Getter, Setter}
 import org.specs2._
+import org.specs2.execute.Failure
 import OpticType._
 
 import Fixture._
@@ -64,79 +65,100 @@ class ErrorsSpec extends Specification with ScalaCheck {
     testGet"$myBasket.items*.qty".errorOrResult === Right(List(11,22,33))
 
   def empty =
-    testGet"".errorOrResult === Left(EmptyError)
+    testGet"".errorOrResult === Left(SyntaxError.EmptyError)
 
   def wrongChar =
-    testGet"^".errorOrResult === Left(UnrecognisedChar('^'))
+    testGet"^".errorOrResult === Left(SyntaxError.UnrecognisedChar('^'))
 
   def getSetter = {
     val setUser = Setter[ShoppingBasket, User](f => b => b.copy(user = f(b.user)))
-    testGet"$myBasket.$setUser".errorOrResult === Left(GetterOpticRequired(SetterType))
+    testGet"$myBasket.$setUser".errorOrResult === Left(UserError.GetterOpticRequired(SetterType))
   }
 
   def setGetter = {
     val getUser = Getter[ShoppingBasket, User](_.user)
-    testSet"$myBasket.$getUser".errorOrResult === Left(SetterOpticRequired(GetterType))
+    testSet"$myBasket.$getUser".errorOrResult === Left(UserError.SetterOpticRequired(GetterType))
   }
 
   def nameNoDot =
-    testGet"${myBasket}items".errorOrResult === Left(NameWithNoDot("items"))
+    testGet"${myBasket}items".errorOrResult === Left(SyntaxError.NameWithNoDot("items"))
 
   def interpNoDot =
-    testGet"$myBasket$basketItems".errorOrResult === Left(InterpOpticWithNoDot)
+    testGet"$myBasket$basketItems".errorOrResult === Left(SyntaxError.InterpOpticWithNoDot)
 
-  def invalidAfterDot1 =
-    testGet"$myBasket.*".errorOrResult === Left(InvalidAfterDot(Token.Star))
+  def invalidAfterDot1 = {
+    testGet"$myBasket.*".errorOrResult match {
+      case Left(SyntaxError.InvalidAfterDot(token: Token.Star)) => success
+      case oops => Failure(s"Expecting Left(SyntaxError.InvalidAfterDot(token: Token.Star)), found $oops")
+    }
+  }
 
-  def invalidAfterDot2 =
-    testGet"$myBasket.?".errorOrResult === Left(InvalidAfterDot(Token.Question))
+  def invalidAfterDot2 = {
+    testGet"$myBasket.?".errorOrResult match {
+      case Left(SyntaxError.InvalidAfterDot(token: Token.Question)) => success
+      case oops => Failure(s"Expecting Left(SyntaxError.InvalidAfterDot(token: Token.Question)), found $oops")
+    }
+  }
+    
 
-  def invalidAfterDot3 =
-    testGet"$myBasket.[0]".errorOrResult === Left(InvalidAfterDot(Token.OpenBracket))
+  def invalidAfterDot3 = {
+    testGet"$myBasket.[0]".errorOrResult match {
+      case Left(SyntaxError.InvalidAfterDot(token: Token.OpenBracket)) => success
+      case oops => Failure(s"Expecting Left(SyntaxError.InvalidAfterDot(token: Token.OpenBracket)), found $oops")
+    }
+  }
 
-  def nonInterpStart =
-    testGet"*".errorOrResult === Left(NonInterpolatedStart(Token.Star))
+  def nonInterpStart = {
+    testGet"*".errorOrResult match {
+      case Left(SyntaxError.NonInterpolatedStart(token: Token.Star)) => success
+      case oops => Failure(s"Expecting Left(SyntaxError.NonInterpolatedStart(token: Token.Star)), found $oops")
+    }
+  }
 
   def unexpectedCloseBracket =
-    testGet"$myBasket.]".errorOrResult === Left(UnexpectedCloseBracket)
+    testGet"$myBasket.]".errorOrResult === Left(SyntaxError.UnexpectedCloseBracket)
 
   def endingDot =
-    testGet"$myBasket.items.".errorOrResult === Left(EndingDot)
+    testGet"$myBasket.items.".errorOrResult === Left(SyntaxError.EndingDot)
 
   def emptyIndex =
-    testGet"$myBasket.items[]".errorOrResult === Left(NoIndexSupplied)
+    testGet"$myBasket.items[]".errorOrResult === Left(SyntaxError.NoIndexSupplied)
 
-  def invalidIndex =
-    testGet"$myBasket.items[*?!]".errorOrResult === Left(InvalidIndexSupplied(Token.Star))
+  def invalidIndex = {
+    testGet"$myBasket.items[*?!]".errorOrResult match {
+      case Left(SyntaxError.InvalidIndexSupplied(token: Token.Star)) => success
+      case oops => Failure(s"Expecting Left(SyntaxError.InvalidIndexSupplied(token: Token.Star)), found $oops")
+    }
+  }
 
   def unclosedOpenBracket =
-    testGet"$myBasket.items[".errorOrResult === Left(UnclosedOpenBracket)
+    testGet"$myBasket.items[".errorOrResult === Left(SyntaxError.UnclosedOpenBracket)
 
   def nameNotFound =
-    testGet"$myBasket.bogus".errorOrResult === Left(NameNotFound("bogus", "goggles.Fixture.ShoppingBasket"))
+    testGet"$myBasket.bogus".errorOrResult === Left(UserError.NameNotFound("bogus", "goggles.Fixture.ShoppingBasket"))
 
   def nameHasArgs =
-    testGet"${new HasArgsMethod}.bogus".errorOrResult === Left(NameHasArguments("bogus", "goggles.HasArgsMethod"))
+    testGet"${new HasArgsMethod}.bogus".errorOrResult === Left(UserError.NameHasArguments("bogus", "goggles.HasArgsMethod"))
 
   def nameHasMultiParamLists =
-    testGet"${new HasMultiParamMethod}.bogus".errorOrResult === Left(NameHasMultiParamLists("bogus", "goggles.HasMultiParamMethod"))
+    testGet"${new HasMultiParamMethod}.bogus".errorOrResult === Left(UserError.NameHasMultiParamLists("bogus", "goggles.HasMultiParamMethod"))
 
   def notAnOptic = {
-    testGet"$myBasket.$Apple".errorOrResult === Left(InterpNotAnOptic("$Apple", "goggles.Fixture.Apple"))
+    testGet"$myBasket.$Apple".errorOrResult === Left(UserError.InterpNotAnOptic("$Apple", "goggles.Fixture.Apple"))
   }
 
   def wrongKindOfOpticGS = {
     val getter = Getter[Apple,Banana](_ => Banana)
     val setter = Setter[Banana,Carrot](_ => _ => Banana)
 
-    testGet"$Apple.$getter.$setter".errorOrResult === Left(WrongKindOfOptic(".$setter", "goggles.Fixture.Banana", "goggles.Fixture.Carrot", GetterType, SetterType))
+    testGet"$Apple.$getter.$setter".errorOrResult === Left(UserError.WrongKindOfOptic(".$setter", "goggles.Fixture.Banana", "goggles.Fixture.Carrot", GetterType, SetterType))
   }
 
   def wrongKindOfOpticSG = {
     val setter = Setter[Apple,Banana](_ => _ => Apple)
     val getter = Getter[Banana,Carrot](_ => Carrot)
 
-    testGet"$Apple.$setter.$getter".errorOrResult === Left(WrongKindOfOptic(".$getter", "goggles.Fixture.Banana", "goggles.Fixture.Carrot", SetterType, GetterType))
+    testGet"$Apple.$setter.$getter".errorOrResult === Left(UserError.WrongKindOfOptic(".$getter", "goggles.Fixture.Banana", "goggles.Fixture.Carrot", SetterType, GetterType))
   }
 
   def wrongKindOfOpticSF = {
@@ -146,46 +168,46 @@ class ErrorsSpec extends Specification with ScalaCheck {
       def foldMap[M: Monoid](f: Carrot => M)(b: Banana): M = Monoid[M].zero
     }
 
-    testGet"$Apple.$setter.$fold".errorOrResult === Left(WrongKindOfOptic(".$fold", "goggles.Fixture.Banana", "goggles.Fixture.Carrot", SetterType, FoldType))
+    testGet"$Apple.$setter.$fold".errorOrResult === Left(UserError.WrongKindOfOptic(".$fold", "goggles.Fixture.Banana", "goggles.Fixture.Carrot", SetterType, FoldType))
   }
 
   def typesDontMatch = {
     val aToB = Getter[Apple,Banana](_ => Banana)
     val cToD = Getter[Carrot,Dolmades](_ => Dolmades)
 
-    testGet"$Apple.$aToB.$cToD".errorOrResult === Left(TypesDontMatch(".$cToD", "goggles.Fixture.Carrot", "goggles.Fixture.Dolmades", "goggles.Fixture.Banana", "goggles.Fixture.Carrot"))
+    testGet"$Apple.$aToB.$cToD".errorOrResult === Left(UserError.TypesDontMatch(".$cToD", "goggles.Fixture.Carrot", "goggles.Fixture.Dolmades", "goggles.Fixture.Banana", "goggles.Fixture.Carrot"))
   }
 
   def noEach = {
-    testGet"$Apple*".errorOrResult === Left(ImplicitEachNotFound("*", "goggles.Fixture.Apple"))
+    testGet"$Apple*".errorOrResult === Left(UserError.ImplicitEachNotFound("*", "goggles.Fixture.Apple"))
   }
 
   def noPossible = {
-    testGet"$Apple?".errorOrResult === Left(ImplicitPossibleNotFound("?", "goggles.Fixture.Apple"))
+    testGet"$Apple?".errorOrResult === Left(UserError.ImplicitPossibleNotFound("?", "goggles.Fixture.Apple"))
   }
 
   def noIndex = {
-    testGet"$Apple[0]".errorOrResult === Left(ImplicitIndexNotFound("[0]", "goggles.Fixture.Apple", "Int"))
+    testGet"$Apple[0]".errorOrResult === Left(UserError.ImplicitIndexNotFound("[0]", "goggles.Fixture.Apple", "Int"))
   }
 
   def wrongIndexType = {
     val i = "a"
-    testGet"${List(1,2,3)}[$i]".errorOrResult === Left(ImplicitIndexNotFound("[$i]", "List[Int]", "String"))
+    testGet"${List(1,2,3)}[$i]".errorOrResult === Left(UserError.ImplicitIndexNotFound("[$i]", "List[Int]", "String"))
   }
 
   def copyMethodNotFound =
-    testSet"${new NoCopy(2)}.i".errorOrResult === Left(CopyMethodNotFound("i", "goggles.NoCopy"))
+    testSet"${new NoCopy(2)}.i".errorOrResult === Left(UserError.CopyMethodNotFound("i", "goggles.NoCopy"))
 
   def copyMethodMultiParamLists =
-    testSet"${new HasCopyMultiParamLists(2)}.i".errorOrResult === Left(CopyMethodHasMultiParamLists("i", "goggles.HasCopyMultiParamLists"))
+    testSet"${new HasCopyMultiParamLists(2)}.i".errorOrResult === Left(UserError.CopyMethodHasMultiParamLists("i", "goggles.HasCopyMultiParamLists"))
 
   def copyMethodNoArgs =
-    testSet"${new HasCopyNoArgs(2)}.i".errorOrResult === Left(CopyMethodHasNoArguments("i", "goggles.HasCopyNoArgs"))
+    testSet"${new HasCopyNoArgs(2)}.i".errorOrResult === Left(UserError.CopyMethodHasNoArguments("i", "goggles.HasCopyNoArgs"))
 
   def copyMethodLacksNamedArgument =
-    testSet"${new HasCopyMissingArg(2)}.i".errorOrResult === Left(CopyMethodLacksNamedArgument("i", "goggles.HasCopyMissingArg"))
+    testSet"${new HasCopyMissingArg(2)}.i".errorOrResult === Left(UserError.CopyMethodLacksNamedArgument("i", "goggles.HasCopyMissingArg"))
 
   def copyMethodLacksParameterDefaults =
-    testSet"${new HasCopyNoDefaults(2)}.i".errorOrResult === Left(CopyMethodLacksParameterDefaults("i", "goggles.HasCopyNoDefaults", List("i")))
+    testSet"${new HasCopyNoDefaults(2)}.i".errorOrResult === Left(UserError.CopyMethodLacksParameterDefaults("i", "goggles.HasCopyNoDefaults", List("i")))
 
 }

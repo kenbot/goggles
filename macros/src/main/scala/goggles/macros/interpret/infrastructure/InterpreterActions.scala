@@ -1,7 +1,7 @@
 package goggles.macros.interpret.infrastructure
 
 import goggles.macros.interpret._
-import goggles.macros.errors._
+import goggles.macros.errors.{GogglesError, UserError, InternalError}
 
 trait InterpreterActions {
     this: Contextual => 
@@ -16,6 +16,7 @@ trait InterpreterActions {
       val pos = tree.pos
       val src = new String(pos.source.content)
       val label = src.substring(pos.start, pos.end)
+
       if (label.forall(_.isUnicodeIdentifierPart)) s"$$$label"
       else s"$${$label}"
     }
@@ -23,7 +24,7 @@ trait InterpreterActions {
     def getLastOpticInfo(name: String): Interpret[OpticInfo[c.Type]] = {
       Parse.getLastOpticInfo[c.Type, c.Expr[Any]].flatMap {
         case Some(info) => Parse.pure(info)
-        case None => Parse.raiseError(OpticInfoNotFound(name))
+        case None => Parse.raiseError(InternalError.OpticInfoNotFound(name))
       }
     }
     
@@ -36,7 +37,7 @@ trait InterpreterActions {
         }
         fromOptic = lastInfo.fold(opticType)(_.compositeOpticType)
         composed <- Parse.fromOption(nextOpticType,
-                                     WrongKindOfOptic(label, sourceType, targetType, fromOptic, opticType))
+                                     UserError.WrongKindOfOptic(label, sourceType, targetType, fromOptic, opticType))
         _ <- Parse.storeOpticInfo(OpticInfo(label, sourceType.resultType, targetType.resultType, opticType, composed))
       } yield ()
     }

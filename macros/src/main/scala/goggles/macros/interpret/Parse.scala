@@ -1,7 +1,7 @@
 package goggles.macros.interpret
 
-import goggles.macros.errors.{GogglesError, NotEnoughArguments, EmptyError}
-import goggles.macros.parse.AST.{ComposedLensExpr, LensExpr}
+import goggles.macros.errors.{GogglesError, SyntaxError, InternalError}
+import goggles.macros.parse.{AST, LensExpr}
 
 private[goggles] trait Parse[Type, Arg, A] {
   self =>
@@ -37,11 +37,11 @@ private[goggles] object Parse {
     case None => raiseError(orElse)
   }
 
-  def loadLensExprs[Type, Arg](either: Either[GogglesError[Type], ComposedLensExpr]): Parse[Type,Arg,Unit] = {
+  def loadLensExprs[Type, Arg](either: Either[GogglesError[Type], AST]): Parse[Type,Arg,Unit] = {
     state0 => 
       val state = either match {
         case Left(err) => state0
-        case Right(composedLensExpr) => state0.copy(remainingLensExprs = composedLensExpr.exprs)
+        case Right(ast) => state0.copy(remainingLensExprs = ast.exprs)
       }
       (either.map(_ => ()), state)
   }
@@ -71,7 +71,7 @@ private[goggles] object Parse {
   def popArg[Type, Arg]: Parse[Type, Arg, Arg] = {
     state0 => state0.popArg match {
       case Some((arg, state)) => (Right(arg), state)
-      case None => (Left(NotEnoughArguments), state0)
+      case None => (Left(InternalError.NotEnoughArguments), state0)
     }
   }
 
@@ -85,7 +85,7 @@ private[goggles] object Parse {
   def popLensExpr[Type, Arg]: Parse[Type, Arg, LensExpr] = {
     state0 => state0.popLensExpr match {
       case Some((lensExpr, state)) => (Right(lensExpr), state)
-      case None => (Left(EmptyError), state0)
+      case None => (Left(SyntaxError.EmptyError), state0)
     }
   }
 

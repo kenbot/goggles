@@ -2,7 +2,7 @@ package goggles.macros.interpret.features
 
 import goggles.macros.interpret.infrastructure.{Contextual, InterpreterActions}
 import goggles.macros.interpret.OpticType
-import goggles.macros.errors._
+import goggles.macros.errors.{UserError, InternalError}
 
 trait EachFeature {
   self: Contextual with InterpreterActions =>
@@ -28,8 +28,8 @@ trait EachFeature {
     for {
       sourceType <- getLastTargetType("*")
       untypedTree = q"implicitly[_root_.monocle.function.Each[$sourceType, _]]"
-      typedTree <- typeCheckOrElse(untypedTree, ImplicitEachNotFound(name, sourceType))
-      targetType <- patternMatchOrElse(typedTree, UnexpectedEachStructure) {
+      typedTree <- typeCheckOrElse(untypedTree, UserError.ImplicitEachNotFound(name, sourceType))
+      targetType <- patternMatchOrElse(typedTree, InternalError.UnexpectedEachStructure) {
         case ImplicitEachTargetType(nextType) => nextType
       }
       _ <- storeOpticInfo(name, sourceType, targetType, OpticType.TraversalType)

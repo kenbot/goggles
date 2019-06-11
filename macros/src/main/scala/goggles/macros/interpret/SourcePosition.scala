@@ -1,6 +1,6 @@
 package goggles.macros.interpret
 
-import goggles.macros.parse.AST._
+import goggles.macros.parse._
 
 import scala.reflect.macros.whitebox
 
@@ -18,10 +18,10 @@ object SourcePosition {
     val prefix = verb + openQuote
 
     val skipSyntax = macroState.currentLensExpr match {
-      case Some(RefExpr(NamedLensRef(name))) => 1   // .
-      case Some(RefExpr(InterpLensRef)) => 2        // .$
-      case Some(IndexedExpr(LiteralIndex(_))) => 1  // [
-      case Some(IndexedExpr(InterpIndex)) => 2      // [$
+      case Some(LensExpr.Ref(LensRef.Named(name))) => 1   // .
+      case Some(LensExpr.Ref(LensRef.Interpolated)) => 2        // .$
+      case Some(LensExpr.Indexed(Index.Literal(_))) => 1  // [
+      case Some(LensExpr.Indexed(Index.Interpolated)) => 2      // [$
       case _ => 0
     }
 
@@ -32,12 +32,12 @@ object SourcePosition {
     val dot = 1
     val brackets = 2
     expr match {
-      case RefExpr(NamedLensRef(name)) => dot + name.length
-      case RefExpr(InterpLensRef) => dot + 0 
-      case EachExpr => 1
-      case OptExpr => 1
-      case IndexedExpr(LiteralIndex(i)) => brackets + i.toString.length
-      case IndexedExpr(InterpIndex) => brackets + 0 
+      case LensExpr.Ref(LensRef.Named(name)) => dot + name.length
+      case LensExpr.Ref(LensRef.Interpolated) => dot + 0 
+      case LensExpr.Each => 1
+      case LensExpr.Opt => 1
+      case LensExpr.Indexed(Index.Literal(i)) => brackets + i.toString.length
+      case LensExpr.Indexed(Index.Interpolated) => brackets + 0 
     }
   }
 

@@ -1,7 +1,7 @@
 package goggles.macros.interpret
 
 import goggles.macros.errors.GogglesError
-import goggles.macros.parse.AST.LensExpr
+import goggles.macros.parse.LensExpr
 
 case class MacroResult[+Type, +A](
   errorOrResult: Either[GogglesError[Type], A],

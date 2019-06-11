@@ -1,38 +1,41 @@
 package goggles.macros.lex
 
 private[goggles] object Lexer {
-  import Token._
 
-  def apply(fragments: List[String]): List[Token] = {
-    fragments match {
+  def apply(fragmentsWithOffset: List[(String, Int)]): List[Token] = {
+    fragmentsWithOffset match {
       case Nil => Nil
-      case s :: ss => lex(s) ::: ss.flatMap(s => Hole :: lex(s))
+      case (s0, offset0) :: ss => lexFragment(s0, offset0) ::: ss.flatMap { 
+        case (s, offset) => Token.Hole :: lexFragment(s, offset) 
+      }
     }
   }
 
-  private def lex(str: String): List[Token] = {
+  private def lexFragment(fragment: String, offset0: Int): List[Token] = {
 
     def isIdentifierChar(c: Char): Boolean = 
       c.isLetterOrDigit || c == '_'
 
-    def mkName(chars: List[Char]): List[Name] = chars match {
-      case Nil => Nil
-      case _ => Name(new String(chars.reverse.toArray)) :: Nil
-    }
+    def loop(nameSoFar: List[Char], rest: List[Char], tokens: List[Token], offset: Int): List[Token] = {
+      def mkName: List[Token.Name] = nameSoFar match {
+        case Nil => Nil
+        case _ => Token.Name(new String(nameSoFar.reverse.toArray), offset) :: Nil
+      }
+      
+      def nameLen = nameSoFar.length
 
-    def loop(nameSoFar: List[Char], rest: List[Char], tokens: List[Token]): List[Token] = {
       rest match {
-        case Nil => mkName(nameSoFar) ::: tokens
-        case c :: tail if isIdentifierChar(c) => loop(c :: nameSoFar, tail, tokens)
-        case '.' :: tail => loop(Nil, tail, Dot :: mkName(nameSoFar) ::: tokens)
-        case '*' :: tail => loop(Nil, tail, Star :: mkName(nameSoFar) ::: tokens) 
-        case '?' :: tail => loop(Nil, tail, Question :: mkName(nameSoFar) ::: tokens) 
-        case '[' :: tail => loop(Nil, tail, OpenBracket :: mkName(nameSoFar) ::: tokens) 
-        case ']' :: tail => loop(Nil, tail, CloseBracket :: mkName(nameSoFar) ::: tokens) 
-        case x :: tail => loop(Nil, tail, Unrecognised(x) :: tokens)
+        case Nil => mkName ::: tokens
+        case c :: tail if isIdentifierChar(c) => loop(c :: nameSoFar, tail, tokens, offset)
+        case '.' :: tail => loop(Nil, tail, Token.Dot(offset + nameLen) :: mkName ::: tokens, offset + nameLen + 1)
+        case '*' :: tail => loop(Nil, tail, Token.Star(offset + nameLen) :: mkName ::: tokens, offset + nameLen + 1)
+        case '?' :: tail => loop(Nil, tail, Token.Question(offset + nameLen) :: mkName ::: tokens, offset + nameLen + 1)
+        case '[' :: tail => loop(Nil, tail, Token.OpenBracket(offset + nameLen) :: mkName ::: tokens, offset + nameLen + 1)
+        case ']' :: tail => loop(Nil, tail, Token.CloseBracket(offset + nameLen) :: mkName ::: tokens, offset + nameLen + 1)
+        case x :: tail => loop(Nil, tail, Token.Unrecognised(x, offset + nameLen) :: tokens, offset + nameLen + 1)
       }
     }
 
-    loop(Nil, str.toList, Nil).reverse
+    loop(Nil, fragment.toList, Nil, offset0).reverse
   }
 }

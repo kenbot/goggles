@@ -2,7 +2,7 @@ package goggles.macros.interpret.features
 
 import goggles.macros.interpret.infrastructure.{Contextual, InterpreterActions}
 import goggles.macros.interpret.{Parse, OpticType}
-import goggles.macros.errors._
+import goggles.macros.errors.{InternalError, UserError}
 
 trait InterpolatedLensRefFeature {
   self: Contextual with InterpreterActions =>
@@ -28,7 +28,7 @@ trait InterpolatedLensRefFeature {
       case "PPrism" => Parse.pure(OpticType.PrismType)
       case "PLens" => Parse.pure(OpticType.LensType)
       case "PIso" => Parse.pure(OpticType.IsoType)
-      case _ => Parse.raiseError(InterpNotAnOptic(argLabel, actualType))
+      case _ => Parse.raiseError(UserError.InterpNotAnOptic(argLabel, actualType))
     }
   }
 
@@ -39,7 +39,7 @@ trait InterpolatedLensRefFeature {
     } else if (typeArgs.length == 2) {
       Parse.pure((typeArgs(0), typeArgs(1)))
     } else {
-      Parse.raiseError(UnexpectedOpticKind(actualType, typeArgs.length))
+      Parse.raiseError(InternalError.UnexpectedOpticKind(actualType, typeArgs.length))
     }
   }
 }

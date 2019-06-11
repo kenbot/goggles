@@ -3,9 +3,9 @@ package goggles.macros.interpret.dsl
 import goggles.macros.interpret._
 import goggles.macros.interpret.features._
 import goggles.macros.interpret.infrastructure._
-import goggles.macros.lex._
 import goggles.macros.parse._
-import goggles.macros.errors._
+import goggles.macros.lex.Lexer
+import goggles.macros.errors.GogglesError
 
 trait LensModeDslImpl extends LensModeDsl
   with Contextual 
@@ -24,8 +24,6 @@ class LensModeDsl  {
   this: Contextual with StringContextInterpreter 
                    with DslModeContext 
                    with LensExprInterpreter => 
-
-  import AST._
                  
   override def mode: DslMode = DslMode.Lens
 
@@ -33,13 +31,13 @@ class LensModeDsl  {
 
     type Interpret[A] = Parse[c.Type, c.Expr[Any], A]
 
-    val lensExprs: Either[GogglesError[c.Type], ComposedLensExpr] =
-      Parser.parseUnappliedLens(Lexer(contextStringParts))
+    val lensExprs: Either[GogglesError[c.Type], AST] =
+      Parser.parseUnappliedLens(Lexer(contextStringPartsWithOffsets))
 
     val finalTree: Interpret[c.Tree] =
       for {
         _ <- Parse.loadLensExprs(lensExprs)
-        tree <- interpretComposedLensExpr
+        tree <- interpretAST
       } yield tree
 
     finalTree.eval(args.toList, mode)
