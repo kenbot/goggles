@@ -2,7 +2,7 @@ package goggles.macros.interpret.features
 
 import goggles.macros.interpret.infrastructure.{Contextual, InterpreterActions}
 import goggles.macros.interpret.{Parse, OpticType}
-import goggles.macros.errors._
+import goggles.macros.errors.{UserError, InternalError}
 
 trait IndexFeature {
   self: Contextual with InterpreterActions =>
@@ -32,8 +32,8 @@ trait IndexFeature {
     for {
       sourceType <- getLastTargetType(label)
       untypedTree = q"implicitly[_root_.monocle.function.Index[$sourceType,$indexType,_]]"
-      typedTree <- typeCheckOrElse(untypedTree, ImplicitIndexNotFound(label, sourceType, indexType))
-      targetType <- patternMatchOrElse(typedTree, UnexpectedIndexStructure(sourceType, indexType)) {
+      typedTree <- typeCheckOrElse(untypedTree, UserError.ImplicitIndexNotFound(label, sourceType, indexType))
+      targetType <- patternMatchOrElse(typedTree, InternalError.UnexpectedIndexStructure(sourceType, indexType)) {
         case ImplicitIndexTargetType(nextType) => nextType
       }
       _ <- storeOpticInfo(label, sourceType, targetType, OpticType.OptionalType)

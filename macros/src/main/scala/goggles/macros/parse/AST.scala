@@ -1,23 +1,27 @@
 package goggles.macros.parse
 
-private[goggles] object AST {
 
-  case class ComposedLensExpr(val head: LensExpr, val tail: List[LensExpr]) {
-    def exprs: List[LensExpr] = head :: tail
-  }
+case class AST(val head: LensExpr, val tail: List[LensExpr]) {
+  def exprs: List[LensExpr] = head :: tail
+}
 
-  sealed trait LensExpr
-  case class RefExpr(lens: LensRef) extends LensExpr
-  case object EachExpr extends LensExpr
-  case object OptExpr extends LensExpr
-  case class IndexedExpr(ix: Index) extends LensExpr
+sealed trait LensExpr
+object LensExpr {
+  case class Ref(lens: LensRef) extends LensExpr
+  case object Each extends LensExpr
+  case object Opt extends LensExpr
+  case class Indexed(ix: Index) extends LensExpr
+}
 
-  sealed trait LensRef
-  case class NamedLensRef(name: String) extends LensRef
-  case object InterpLensRef extends LensRef
+sealed trait LensRef
+object LensRef {
+  case class Named(name: String) extends LensRef
+  case object Interpolated extends LensRef
+}
 
-  sealed trait Index
-  case class LiteralIndex(i: Int) extends Index
-  case object InterpIndex extends Index
+sealed trait Index
+object Index {
+  case class Literal(i: Int) extends Index
+  case object Interpolated extends Index
 }
 

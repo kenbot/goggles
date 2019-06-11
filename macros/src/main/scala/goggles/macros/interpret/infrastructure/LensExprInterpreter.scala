@@ -3,7 +3,7 @@ package goggles.macros.interpret.infrastructure
 import goggles.macros.interpret._
 import goggles.macros.interpret.features._
 import goggles.macros.parse._
-import goggles.macros.errors._
+import goggles.macros.errors.UserError
 
 trait LensExprInterpreter {
     self: Contextual with InterpreterActions 
@@ -15,9 +15,8 @@ trait LensExprInterpreter {
                      with IndexFeature =>
   
     import c.universe._
-    import AST._
   
-    def interpretComposedLensExpr: Interpret[c.Tree] = {
+    def interpretAST: Interpret[c.Tree] = {
       val initCode: Interpret[c.Tree] = 
         if (mode.appliedToObject) interpretSourceObject
         else Parse.popLensExpr.flatMap(interpretLensExpr)
@@ -41,7 +40,7 @@ trait LensExprInterpreter {
             nextLensCode <- interpretLensExpr(lensExpr)
             thisInfo <- getLastOpticInfo(show(nextLensCode))
             tree = q"($codeSoFar).${TermName(thisInfo.opticType.composeVerb)}($nextLensCode)"
-            checkedTree <- typeCheckOrElse(tree, TypesDontMatch(thisInfo.label, thisInfo.sourceType, thisInfo.targetType, lastInfo.targetType, thisInfo.sourceType))
+            checkedTree <- typeCheckOrElse(tree, UserError.TypesDontMatch(thisInfo.label, thisInfo.sourceType, thisInfo.targetType, lastInfo.targetType, thisInfo.sourceType))
             nextTree <- compose(checkedTree)
           } yield nextTree
       }
@@ -49,12 +48,12 @@ trait LensExprInterpreter {
 
     private def interpretLensExpr(lexpr: LensExpr): Interpret[c.Tree] = {
       lexpr match {
-        case RefExpr(NamedLensRef(name)) => interpretNamedLensRef(name)
-        case RefExpr(InterpLensRef) => interpretInterpolatedLens
-        case EachExpr => interpretEach
-        case OptExpr => interpretPossible
-        case IndexedExpr(LiteralIndex(i)) => interpretLiteralIndex(i)
-        case IndexedExpr(InterpIndex) => interpretInterpolatedIndex
+        case LensExpr.Ref(LensRef.Named(name)) => interpretNamedLensRef(name)
+        case LensExpr.Ref(LensRef.Interpolated) => interpretInterpolatedLens
+        case LensExpr.Each => interpretEach
+        case LensExpr.Opt => interpretPossible
+        case LensExpr.Indexed(Index.Literal(i)) => interpretLiteralIndex(i)
+        case LensExpr.Indexed(Index.Interpolated) => interpretInterpolatedIndex
       }
     }
   }

@@ -2,7 +2,7 @@ package goggles.macros.interpret.features
 
 import goggles.macros.interpret.infrastructure.{Contextual, InterpreterActions, DslModeContext}
 import goggles.macros.interpret.{Parse, DslMode}
-import goggles.macros.errors._
+import goggles.macros.errors.{UserError}
 
 trait NamedLensRefFeature {
   self: Contextual with DslModeContext 
@@ -15,30 +15,30 @@ trait NamedLensRefFeature {
 
     def validateGetter(sourceType: c.Type): Interpret[c.Type] = {
       val getter = sourceType.member(TermName(name))
-      if (getter == NoSymbol) Parse.raiseError(NameNotFound(name, sourceType))
-      else if (!getter.isMethod) Parse.raiseError(NameNotAMethod(name, sourceType))
+      if (getter == NoSymbol) Parse.raiseError(UserError.NameNotFound(name, sourceType))
+      else if (!getter.isMethod) Parse.raiseError(UserError.NameNotAMethod(name, sourceType))
       else {
         getter.asMethod.paramLists match {
           case Nil | List(Nil) => Parse.pure(getter.info)
-          case List(_, _, _*) => Parse.raiseError(NameHasMultiParamLists(name, sourceType))
-          case List(List(_, _*)) => Parse.raiseError(NameHasArguments(name, sourceType))
+          case List(_, _, _*) => Parse.raiseError(UserError.NameHasMultiParamLists(name, sourceType))
+          case List(List(_, _*)) => Parse.raiseError(UserError.NameHasArguments(name, sourceType))
         }
       }
     }
 
     def validateSetter(sourceType: c.Type): Interpret[Unit] = {
       val copyMethod = sourceType.member(TermName("copy"))
-      if (copyMethod == NoSymbol) Parse.raiseError(CopyMethodNotFound(name, sourceType))
-      else if (!copyMethod.isMethod) Parse.raiseError(CopyMethodNotAMethod(name, sourceType))
+      if (copyMethod == NoSymbol) Parse.raiseError(UserError.CopyMethodNotFound(name, sourceType))
+      else if (!copyMethod.isMethod) Parse.raiseError(UserError.CopyMethodNotAMethod(name, sourceType))
       else {
         copyMethod.asMethod.paramLists match {
-          case Nil | List(Nil) => Parse.raiseError(CopyMethodHasNoArguments(name, sourceType))
-          case List(_, _, _*) => Parse.raiseError(CopyMethodHasMultiParamLists(name, sourceType))
+          case Nil | List(Nil) => Parse.raiseError(UserError.CopyMethodHasNoArguments(name, sourceType))
+          case List(_, _, _*) => Parse.raiseError(UserError.CopyMethodHasMultiParamLists(name, sourceType))
           case List(args) if args.exists(!_.asTerm.isParamWithDefault) =>
             val argsWithNoDefaults = args.filterNot(_.asTerm.isParamWithDefault).map(_.name.toString)
-            Parse.raiseError(CopyMethodLacksParameterDefaults(name, sourceType, argsWithNoDefaults))
+            Parse.raiseError(UserError.CopyMethodLacksParameterDefaults(name, sourceType, argsWithNoDefaults))
           case List(args) if !args.exists(_.name == TermName(name)) =>
-            Parse.raiseError(CopyMethodLacksNamedArgument(name, sourceType))
+            Parse.raiseError(UserError.CopyMethodLacksNamedArgument(name, sourceType))
           case _ => Parse.pure(())
         }
       }

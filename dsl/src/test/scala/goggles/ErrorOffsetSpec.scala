@@ -22,6 +22,7 @@ class ErrorOffsetSpec extends Specification with ScalaCheck {
         get"$$obj^[0]" $getIndex
 
         get"$${obj}.^name" $getCurliesName
+        get"$${obj}.^name" $getCurlxesName
 
         get"$$obj[0].^name" $getIndexLiteralName
 
@@ -49,6 +50,12 @@ class ErrorOffsetSpec extends Specification with ScalaCheck {
     
     val notAnOptic = 473
     val zero = 0
+    val BASKET = myBasket
+
+
+    def getCurliesName = testGet"${     BASKET}.BOGUS".lastSegmentOffset === 16
+    def getCurlxesName = testGet"${BASKET}.BOGUS".lastSegmentOffset === 16
+
 
     def getName = testGet"$myBasket.BOGUS".lastSegmentOffset === 14
     def getOptic = testGet"$myBasket.$notAnOptic".lastSegmentOffset === 15
@@ -56,7 +63,7 @@ class ErrorOffsetSpec extends Specification with ScalaCheck {
     def getStar = testGet"$myBasket*".lastSegmentOffset === 13
     def getQ = testGet"$myBasket?".lastSegmentOffset === 13
     def getIndex = testGet"$myBasket[0]".lastSegmentOffset === 14
-    def getCurliesName = testGet"${myBasket}.BOGUS".lastSegmentOffset === 16
+    
     def getIndexLiteralName = testGet"$myItemList[0].BOGUS".lastSegmentOffset === 19
     def getInterpIndexName = testGet"$myItemList[$zero].BOGUS".lastSegmentOffset === 23
     def getInterpIndexCurliesName = testGet"$myItemList[${zero}].BOGUS".lastSegmentOffset === 25

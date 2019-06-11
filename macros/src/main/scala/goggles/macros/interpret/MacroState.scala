@@ -1,6 +1,6 @@
 package goggles.macros.interpret
 
-import goggles.macros.parse.AST.LensExpr
+import goggles.macros.parse.LensExpr
 
 private[goggles] case class MacroState[+Type,+Arg](
   args: List[Arg], 
