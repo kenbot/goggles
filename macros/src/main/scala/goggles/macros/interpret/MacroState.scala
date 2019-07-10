@@ -1,13 +1,15 @@
 package goggles.macros.interpret
 
-import goggles.macros.parse.LensExpr
+
+object MacroState {
+  def blank[Type, Arg](args: List[Arg]): MacroState[Type, Arg] = 
+    MacroState(args, Nil, 0)
+}
 
 private[goggles] case class MacroState[+Type,+Arg](
   args: List[Arg], 
-  currentLensExpr: Option[LensExpr],
-  remainingLensExprs: List[LensExpr],
-  reversedInfos: List[OpticInfo[Type]], 
-  offset: Int) {
+  reversedInfos: List[OpticInfo[Type]],
+  currentExprOffset: Int) {
 
   def infos: List[OpticInfo[Type]] = 
     reversedInfos.reverse
@@ -22,12 +24,4 @@ private[goggles] case class MacroState[+Type,+Arg](
     case head :: tail => Some((head, copy(args = tail)))
     case Nil => None
   }
-
-  def popLensExpr: Option[(LensExpr, MacroState[Type, Arg])] = remainingLensExprs match {
-    case head :: tail => Some((head, copy(currentLensExpr = Some(head), remainingLensExprs = tail)))
-    case Nil => None
-  }
-
-  def addToOffset(n: Int): MacroState[Type, Arg] = 
-    copy(offset = offset + n)
 }

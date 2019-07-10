@@ -5,25 +5,26 @@ import goggles.macros.interpret.features._
 import goggles.macros.interpret.infrastructure._
 import goggles.macros.parse._
 import goggles.macros.lex.Lexer
-import goggles.macros.errors.{GogglesError, UserError, InternalError}
+import goggles.macros.errors.{UserError, InternalError, ErrorAt}
 
 trait SetModeDslImpl extends SetModeDsl
   with Contextual 
   with DslModeContext
-  with StringContextInterpreter
-  with LensExprInterpreter
-  with InterpreterActions
+  with StringContextsContext
+  with InterpretASTContext
+  with TypeCheckContext
+  with OpticInfoContext
   with EachFeature
   with IndexFeature
   with InterpolatedLensRefFeature
   with NamedLensRefFeature
   with PossibleFeature
-
+  with HandleResultsContext
 
 class SetModeDsl  {
-  this: Contextual with StringContextInterpreter 
-                   with DslModeContext 
-                   with LensExprInterpreter => 
+  self: Contextual with DslModeContext
+                   with StringContextsContext 
+                   with InterpretASTContext =>
 
   override def mode: DslMode = DslMode.Set
 
@@ -41,18 +42,16 @@ class SetModeDsl  {
       } yield tree
     }
 
-    val lensExprs: Either[GogglesError[c.Type], AST] =
-      Parser.parseAppliedLens(Lexer(contextStringPartsWithOffsets))
+    val astOrError: Either[ErrorAt[c.Type], AST] =
+      contextStringFragments(args.toList).flatMap(frags => Parser.parseAppliedLens(Lexer(frags)))
 
     val finalTree: Interpret[c.Tree] =
       for {
-        _ <- Parse.loadLensExprs(lensExprs)
-        tree <- interpretAST
+        ast <- Parse.fromEither(astOrError)
+        tree <- interpretAST(ast)
         setter <- setterExpression(tree)
       } yield q"(new _root_.goggles.macros.MonocleModifyOps($setter))"
 
-    finalTree.eval(args.toList, mode)
+    finalTree.eval(args.toList)
   }
-
-
 }
