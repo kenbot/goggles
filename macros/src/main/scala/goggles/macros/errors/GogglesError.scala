@@ -5,6 +5,9 @@ import goggles.macros.lex.Token
 
 private[goggles] sealed trait GogglesError[+T] {
   def map[U](f: T => U): GogglesError[U]
+
+  def at(offset: Int): ErrorAt[T] = 
+    ErrorAt(this, offset)
 }
 
 sealed trait SyntaxError extends GogglesError[Nothing] {
@@ -16,12 +19,12 @@ object SyntaxError {
   case object EmptyError extends SyntaxError
   case class NameWithNoDot(name: String) extends SyntaxError
   case object InterpOpticWithNoDot extends SyntaxError
-  case class InvalidAfterDot(tok: Token) extends SyntaxError
-  case class NonInterpolatedStart(tok: Token) extends SyntaxError
+  case class InvalidAfterDot(token: Token) extends SyntaxError
+  case class NonInterpolatedStart(token: Token) extends SyntaxError
   case object UnexpectedCloseBracket extends SyntaxError
   case object EndingDot extends SyntaxError
   case object NoIndexSupplied extends SyntaxError
-  case class InvalidIndexSupplied(tok: Token) extends SyntaxError
+  case class InvalidIndexSupplied(token: Token) extends SyntaxError
   case object UnclosedOpenBracket extends SyntaxError
   case class VerbatimIndexNotInt(expr: String) extends SyntaxError
 }

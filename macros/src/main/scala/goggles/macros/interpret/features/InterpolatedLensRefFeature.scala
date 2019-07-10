@@ -1,15 +1,15 @@
 package goggles.macros.interpret.features
 
-import goggles.macros.interpret.infrastructure.{Contextual, InterpreterActions}
+import goggles.macros.interpret.infrastructure.{Contextual, OpticInfoContext}
 import goggles.macros.interpret.{Parse, OpticType}
 import goggles.macros.errors.{InternalError, UserError}
 
 trait InterpolatedLensRefFeature {
-  self: Contextual with InterpreterActions =>
+  self: Contextual with OpticInfoContext =>
 
   def interpretInterpolatedLens: Interpret[c.Tree] = {
     for {
-      arg <- Parse.popArg[c.Type, c.Expr[Any]]
+      arg <- Parse.popArg[c.Type, c.Expr[Any]] // We need this to automatically store the source position of the arg in the current LensExpr
       argLabel = getArgLabel(arg.tree)
       opticType <- getOpticTypeFromArg(argLabel, arg.actualType)
       io <- getInputOutputTypes(arg.actualType, opticType)

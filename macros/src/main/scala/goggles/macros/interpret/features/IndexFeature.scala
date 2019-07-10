@@ -1,11 +1,12 @@
 package goggles.macros.interpret.features
 
-import goggles.macros.interpret.infrastructure.{Contextual, InterpreterActions}
+import goggles.macros.interpret.infrastructure.{Contextual, OpticInfoContext, TypeCheckContext}
 import goggles.macros.interpret.{Parse, OpticType}
 import goggles.macros.errors.{UserError, InternalError}
 
 trait IndexFeature {
-  self: Contextual with InterpreterActions =>
+  self: Contextual with OpticInfoContext 
+                   with TypeCheckContext =>
 
   import c.universe._
 

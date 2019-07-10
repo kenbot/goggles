@@ -1,13 +1,16 @@
 package goggles.macros.interpret
 
-import goggles.macros.errors.GogglesError
-import goggles.macros.parse.LensExpr
+import goggles.macros.errors.{ErrorAt, GogglesError}
 
 case class MacroResult[+Type, +A](
-  errorOrResult: Either[GogglesError[Type], A],
-  infos: List[OpticInfo[Type]],
-  remainingExprs: List[LensExpr],
-  lastSegmentOffset: Int)
-
+    errorAtOrResult: Either[ErrorAt[Type], A], 
+    infos: List[OpticInfo[Type]]) {
   
-
+  def errorOrResult: Either[GogglesError[Type], A] = 
+    errorAtOrResult.swap.map(_.error).swap
+  
+  def errorOffset: Option[Int] = errorAtOrResult match {
+    case Left(err) => Some(err.offset)
+    case Right(_) => None
+  }
+}

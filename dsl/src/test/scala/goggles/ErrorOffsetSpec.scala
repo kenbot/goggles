@@ -21,9 +21,6 @@ class ErrorOffsetSpec extends Specification with ScalaCheck {
 
         get"$$obj^[0]" $getIndex
 
-        get"$${obj}.^name" $getCurliesName
-        get"$${obj}.^name" $getCurlxesName
-
         get"$$obj[0].^name" $getIndexLiteralName
 
         get"$$obj[$$i].^name" $getInterpIndexName
@@ -52,29 +49,22 @@ class ErrorOffsetSpec extends Specification with ScalaCheck {
     val zero = 0
     val BASKET = myBasket
 
-
-    def getCurliesName = testGet"${     BASKET}.BOGUS".lastSegmentOffset === 16
-    def getCurlxesName = testGet"${BASKET}.BOGUS".lastSegmentOffset === 16
-
-
-    def getName = testGet"$myBasket.BOGUS".lastSegmentOffset === 14
-    def getOptic = testGet"$myBasket.$notAnOptic".lastSegmentOffset === 15
-    def getOpticCurlies = testGet"$myBasket.${notAnOptic}".lastSegmentOffset === 16
-    def getStar = testGet"$myBasket*".lastSegmentOffset === 13
-    def getQ = testGet"$myBasket?".lastSegmentOffset === 13
-    def getIndex = testGet"$myBasket[0]".lastSegmentOffset === 14
+    def getName = testGet"$myBasket.BOGUS".errorOffset === Some(10)
+    def getOptic = testGet"$myBasket.$notAnOptic".errorOffset === Some(11)
+    def getOpticCurlies = testGet"$myBasket.${notAnOptic}".errorOffset === Some(12)
+    def getStar = testGet"$myBasket*".errorOffset === Some(9)
+    def getQ = testGet"$myBasket?".errorOffset === Some(9)
+    def getIndex = testGet"$myBasket[0]".errorOffset === Some(10)
     
-    def getIndexLiteralName = testGet"$myItemList[0].BOGUS".lastSegmentOffset === 19
-    def getInterpIndexName = testGet"$myItemList[$zero].BOGUS".lastSegmentOffset === 23
-    def getInterpIndexCurliesName = testGet"$myItemList[${zero}].BOGUS".lastSegmentOffset === 25
-    def getOpticName = testGet"$myBasket.$basketItems.BOGUS".lastSegmentOffset === 27
-    def getOpticCurliesName = testGet"$myBasket.${basketItems}.BOGUS".lastSegmentOffset === 29
-    def getNameName = testGet"$myBasket.items.BOGUS".lastSegmentOffset === 20
-    def getNameStar = testGet"$myBasket.user*".lastSegmentOffset === 18
-    def lensOpticName = testLens"$basketUser.BOGUS".lastSegmentOffset === 18
-    def lensOpticStar = testLens"$basketUser*".lastSegmentOffset === 17
-    def setName = testSet"$myBasket.BOGUS".lastSegmentOffset === 14
-    def setNameName = testSet"$myBasket.items.BOGUS".lastSegmentOffset === 20
-
-
+    def getIndexLiteralName = testGet"$myItemList[0].BOGUS".errorOffset === Some(15)
+    def getInterpIndexName = testGet"$myItemList[$zero].BOGUS".errorOffset === Some(19)
+    def getInterpIndexCurliesName = testGet"$myItemList[${zero}].BOGUS".errorOffset === Some(21)
+    def getOpticName = testGet"$myBasket.$basketItems.BOGUS".errorOffset === Some(23)
+    def getOpticCurliesName = testGet"$myBasket.${basketItems}.BOGUS".errorOffset === Some(25)
+    def getNameName = testGet"$myBasket.items.BOGUS".errorOffset === Some(16)
+    def getNameStar = testGet"$myBasket.user*".errorOffset === Some(14)
+    def lensOpticName = testLens"$basketUser.BOGUS".errorOffset === Some(12)
+    def lensOpticStar = testLens"$basketUser*".errorOffset === Some(11)
+    def setName = testSet"$myBasket.BOGUS".errorOffset === Some(10)
+    def setNameName = testSet"$myBasket.items.BOGUS".errorOffset === Some(16)
 }

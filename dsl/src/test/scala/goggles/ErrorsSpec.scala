@@ -6,7 +6,6 @@ import goggles.macros.lex.Token
 import goggles.testdsl._
 import monocle.{Fold, Getter, Setter}
 import org.specs2._
-import org.specs2.execute.Failure
 import OpticType._
 
 import Fixture._
@@ -86,34 +85,17 @@ class ErrorsSpec extends Specification with ScalaCheck {
   def interpNoDot =
     testGet"$myBasket$basketItems".errorOrResult === Left(SyntaxError.InterpOpticWithNoDot)
 
-  def invalidAfterDot1 = {
-    testGet"$myBasket.*".errorOrResult match {
-      case Left(SyntaxError.InvalidAfterDot(token: Token.Star)) => success
-      case oops => Failure(s"Expecting Left(SyntaxError.InvalidAfterDot(token: Token.Star)), found $oops")
-    }
-  }
+  def invalidAfterDot1 = 
+    testGet"$myBasket.*".errorOrResult === Left(SyntaxError.InvalidAfterDot(Token.Star))
 
-  def invalidAfterDot2 = {
-    testGet"$myBasket.?".errorOrResult match {
-      case Left(SyntaxError.InvalidAfterDot(token: Token.Question)) => success
-      case oops => Failure(s"Expecting Left(SyntaxError.InvalidAfterDot(token: Token.Question)), found $oops")
-    }
-  }
-    
+  def invalidAfterDot2 = 
+    testGet"$myBasket.?".errorOrResult === Left(SyntaxError.InvalidAfterDot(Token.Question))
 
-  def invalidAfterDot3 = {
-    testGet"$myBasket.[0]".errorOrResult match {
-      case Left(SyntaxError.InvalidAfterDot(token: Token.OpenBracket)) => success
-      case oops => Failure(s"Expecting Left(SyntaxError.InvalidAfterDot(token: Token.OpenBracket)), found $oops")
-    }
-  }
+  def invalidAfterDot3 = 
+    testGet"$myBasket.[0]".errorOrResult === Left(SyntaxError.InvalidAfterDot(Token.OpenBracket))
 
-  def nonInterpStart = {
-    testGet"*".errorOrResult match {
-      case Left(SyntaxError.NonInterpolatedStart(token: Token.Star)) => success
-      case oops => Failure(s"Expecting Left(SyntaxError.NonInterpolatedStart(token: Token.Star)), found $oops")
-    }
-  }
+  def nonInterpStart = 
+    testGet"*".errorOrResult === Left(SyntaxError.NonInterpolatedStart(Token.Star))
 
   def unexpectedCloseBracket =
     testGet"$myBasket.]".errorOrResult === Left(SyntaxError.UnexpectedCloseBracket)
@@ -124,12 +106,8 @@ class ErrorsSpec extends Specification with ScalaCheck {
   def emptyIndex =
     testGet"$myBasket.items[]".errorOrResult === Left(SyntaxError.NoIndexSupplied)
 
-  def invalidIndex = {
-    testGet"$myBasket.items[*?!]".errorOrResult match {
-      case Left(SyntaxError.InvalidIndexSupplied(token: Token.Star)) => success
-      case oops => Failure(s"Expecting Left(SyntaxError.InvalidIndexSupplied(token: Token.Star)), found $oops")
-    }
-  }
+  def invalidIndex = 
+    testGet"$myBasket.items[*?!]".errorOrResult === Left(SyntaxError.InvalidIndexSupplied(Token.Star))
 
   def unclosedOpenBracket =
     testGet"$myBasket.items[".errorOrResult === Left(SyntaxError.UnclosedOpenBracket)

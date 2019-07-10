@@ -1,11 +1,12 @@
 package goggles.macros.interpret.features
 
-import goggles.macros.interpret.infrastructure.{Contextual, InterpreterActions}
+import goggles.macros.interpret.infrastructure.{Contextual, TypeCheckContext, OpticInfoContext}
 import goggles.macros.interpret.OpticType
 import goggles.macros.errors.{UserError, InternalError}
 
 trait PossibleFeature {
-  self: Contextual with InterpreterActions =>
+  self: Contextual with TypeCheckContext 
+                   with OpticInfoContext =>
 
   import c.universe._
 

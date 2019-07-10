@@ -1,6 +1,6 @@
 package goggles.macros
 
-import goggles.macros.errors.{GogglesError, SyntaxError, UserError, InternalError}
+import goggles.macros.errors.{GogglesError, SyntaxError, UserError, InternalError, ErrorAt}
 import goggles.macros.interpret.dsl.{GetModeDslImpl, SetModeDslImpl, LensModeDslImpl}
 import goggles.macros.interpret.{MacroResult, OpticType, OpticInfo}
 import goggles.macros.lex.Token
@@ -54,14 +54,14 @@ object RuntimeMacros {
     }
 
     implicit val tokenLiftable = Liftable[Token] {
-      case Token.Name(name, offset) => q"_root_.goggles.macros.lex.Token.Name($name, $offset)"
-      case Token.Dot(offset) => q"_root_.goggles.macros.lex.Token.Dot($offset)"
-      case Token.OpenBracket(offset) => q"_root_.goggles.macros.lex.Token.OpenBracket($offset)"
-      case Token.CloseBracket(offset) => q"_root_.goggles.macros.lex.Token.CloseBracket($offset)"
-      case Token.Star(offset) => q"_root_.goggles.macros.lex.Token.Star($offset)"
-      case Token.Question(offset) => q"_root_.goggles.macros.lex.Token.Question($offset)"
+      case Token.Name(name) => q"_root_.goggles.macros.lex.Token.Name($name)"
+      case Token.Dot => q"_root_.goggles.macros.lex.Token.Dot"
+      case Token.OpenBracket => q"_root_.goggles.macros.lex.Token.OpenBracket"
+      case Token.CloseBracket => q"_root_.goggles.macros.lex.Token.CloseBracket"
+      case Token.Star => q"_root_.goggles.macros.lex.Token.Star"
+      case Token.Question => q"_root_.goggles.macros.lex.Token.Question"
       case Token.Hole => q"_root_.goggles.macros.lex.Token.Hole"
-      case Token.Unrecognised(ch, offset) => q"_root_.goggles.macros.lex.Token.Unrecognised($ch, $offset)"
+      case Token.Unrecognised(ch) => q"_root_.goggles.macros.lex.Token.Unrecognised($ch)"
     }
 
     def typeStr(t: c.Type): String = t.toString
@@ -71,12 +71,12 @@ object RuntimeMacros {
       case SyntaxError.EmptyError => q"_root_.goggles.macros.errors.SyntaxError.EmptyError"
       case SyntaxError.NameWithNoDot(name) => q"_root_.goggles.macros.errors.SyntaxError.NameWithNoDot($name)"
       case SyntaxError.InterpOpticWithNoDot => q"_root_.goggles.macros.errors.SyntaxError.InterpOpticWithNoDot"
-      case SyntaxError.InvalidAfterDot(tok) => q"_root_.goggles.macros.errors.SyntaxError.InvalidAfterDot($tok)"
-      case SyntaxError.NonInterpolatedStart(tok) => q"_root_.goggles.macros.errors.SyntaxError.NonInterpolatedStart($tok)"
+      case SyntaxError.InvalidAfterDot(token) => q"_root_.goggles.macros.errors.SyntaxError.InvalidAfterDot($token)"
+      case SyntaxError.NonInterpolatedStart(token) => q"_root_.goggles.macros.errors.SyntaxError.NonInterpolatedStart($token)"
       case SyntaxError.UnexpectedCloseBracket => q"_root_.goggles.macros.errors.SyntaxError.UnexpectedCloseBracket"
       case SyntaxError.EndingDot => q"_root_.goggles.macros.errors.SyntaxError.EndingDot"
-      case SyntaxError.NoIndexSupplied => q"_root_.goggles.macros.errors.SyntaxError.NoIndexSupplied"
-      case SyntaxError.InvalidIndexSupplied(tok) => q"_root_.goggles.macros.errors.SyntaxError.InvalidIndexSupplied($tok)"
+      case SyntaxError.NoIndexSupplied  => q"_root_.goggles.macros.errors.SyntaxError.NoIndexSupplied"
+      case SyntaxError.InvalidIndexSupplied(token) => q"_root_.goggles.macros.errors.SyntaxError.InvalidIndexSupplied($token)"
       case SyntaxError.UnclosedOpenBracket => q"_root_.goggles.macros.errors.SyntaxError.UnclosedOpenBracket"
       case SyntaxError.VerbatimIndexNotInt(expr) => q"_root_.goggles.macros.errors.SyntaxError.VerbatimIndexNotPositiveInt($expr)"
       case UserError.GetterOpticRequired(finalOpticType) => q"_root_.goggles.macros.errors.UserError.GetterOpticRequired($finalOpticType)"
@@ -106,7 +106,11 @@ object RuntimeMacros {
       case InternalError.NotEnoughArguments => q"_root_.goggles.macros.errors.InternalError.NotEnoughArguments"
     }
 
-    implicit val eitherLiftable = Liftable[Either[GogglesError[c.Type],c.Tree]] {
+    implicit val errorAtLiftable = Liftable[ErrorAt[c.Type]] {
+      case ErrorAt(error, offset) => q"_root_.goggles.macros.errors.ErrorAt($error, $offset)"
+    }
+
+    implicit val eitherLiftable = Liftable[Either[ErrorAt[c.Type],c.Tree]] {
       case Left(left) => q"_root_.scala.Left($left)"
       case Right(right) => q"_root_.scala.Right($right)"
     }
@@ -116,7 +120,7 @@ object RuntimeMacros {
     }
 
     implicit val macroResultLiftable = Liftable[MacroResult[c.Type, c.Tree]] {
-      case MacroResult(errorOrTree, infos, remainingExprs, lastSegmentOffset) => q"_root_.goggles.macros.interpret.MacroResult($errorOrTree, $infos, $remainingExprs, $lastSegmentOffset)"
+      case MacroResult(errorOrTree, infos) => q"_root_.goggles.macros.interpret.MacroResult($errorOrTree, $infos)"
     }
 
     q"$macroResult"
