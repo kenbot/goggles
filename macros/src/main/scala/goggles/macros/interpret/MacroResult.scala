@@ -1,15 +1,16 @@
 package goggles.macros.interpret
 
-import goggles.macros.errors.GogglesError
+import goggles.macros.errors.{ErrorAt, GogglesError}
 
-private[goggles] case class MacroResult[Type, Tree](
-  errorOrTree: Either[GogglesError[Type], Tree],
-  infos: List[OpticInfo[Type]])
-
-private[goggles] object MacroResult {
-  def tupled[Type,Tree](tuple: (Either[GogglesError[Type], Tree],
-                                List[OpticInfo[Type]])) = {
-    MacroResult(tuple._1, tuple._2)
+case class MacroResult[+Type, +A](
+    errorAtOrResult: Either[ErrorAt[Type], A], 
+    infos: List[OpticInfo[Type]]) {
+  
+  def errorOrResult: Either[GogglesError[Type], A] = 
+    errorAtOrResult.swap.map(_.error).swap
+  
+  def errorOffset: Option[Int] = errorAtOrResult match {
+    case Left(err) => Some(err.offset)
+    case Right(_) => None
   }
 }
-

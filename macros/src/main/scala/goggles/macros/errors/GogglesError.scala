@@ -5,27 +5,34 @@ import goggles.macros.lex.Token
 
 private[goggles] sealed trait GogglesError[+T] {
   def map[U](f: T => U): GogglesError[U]
+
+  def at(offset: Int): ErrorAt[T] = 
+    ErrorAt(this, offset)
 }
 
 sealed trait SyntaxError extends GogglesError[Nothing] {
   def map[U](f: Nothing => U): SyntaxError = this
 }
 
-case class UnrecognisedChar(char: Char) extends SyntaxError
-case object EmptyError extends SyntaxError
-case class NameWithNoDot(name: String) extends SyntaxError
-case object InterpOpticWithNoDot extends SyntaxError
-case class InvalidAfterDot(tok: Token) extends SyntaxError
-case class NonInterpolatedStart(tok: Token) extends SyntaxError
-case object UnexpectedCloseBracket extends SyntaxError
-case object EndingDot extends SyntaxError
-case object NoIndexSupplied extends SyntaxError
-case class InvalidIndexSupplied(tok: Token) extends SyntaxError
-case object UnclosedOpenBracket extends SyntaxError
-case class VerbatimIndexNotInt(expr: String) extends SyntaxError
+object SyntaxError {
+  case class UnrecognisedChar(char: Char) extends SyntaxError
+  case object EmptyError extends SyntaxError
+  case class NameWithNoDot(name: String) extends SyntaxError
+  case object InterpOpticWithNoDot extends SyntaxError
+  case class InvalidAfterDot(token: Token) extends SyntaxError
+  case class NonInterpolatedStart(token: Token) extends SyntaxError
+  case object UnexpectedCloseBracket extends SyntaxError
+  case object EndingDot extends SyntaxError
+  case object NoIndexSupplied extends SyntaxError
+  case class InvalidIndexSupplied(token: Token) extends SyntaxError
+  case object UnclosedOpenBracket extends SyntaxError
+  case class VerbatimIndexNotInt(expr: String) extends SyntaxError
+}
 
-sealed trait MacroUserError[+T] extends GogglesError[T] {
-  def map[U](f: T => U): MacroUserError[U] = this match {
+sealed trait UserError[+T] extends GogglesError[T] {
+  import UserError._
+
+  def map[U](f: T => U): UserError[U] = this match {
     case GetterOpticRequired(x) => GetterOpticRequired(x)
     case SetterOpticRequired(x) => SetterOpticRequired(x)
     case NameNotFound(name, sourceType) => NameNotFound(name, f(sourceType))
@@ -47,27 +54,30 @@ sealed trait MacroUserError[+T] extends GogglesError[T] {
   }
 }
 
-case class GetterOpticRequired(finalOpticType: OpticType) extends MacroUserError[Nothing]
-case class SetterOpticRequired(finalOpticType: OpticType) extends MacroUserError[Nothing]
-case class NameNotFound[T](name: String, sourceType: T) extends MacroUserError[T]
-case class NameNotAMethod[T](name: String, sourceType: T) extends MacroUserError[T]
-case class NameHasArguments[T](name: String, sourceType: T) extends MacroUserError[T]
-case class NameHasMultiParamLists[T](name: String, sourceType: T) extends MacroUserError[T]
-case class InterpNotAnOptic[T](name: String, actualType: T) extends MacroUserError[T]
-case class WrongKindOfOptic[T](name: String, sourceType: T, targetType: T, from: OpticType, to: OpticType) extends MacroUserError[T]
-case class TypesDontMatch[T](name: String, sourceType: T, targetType: T, expectedType: T, actualType: T) extends MacroUserError[T]
-case class ImplicitEachNotFound[T](name: String, sourceType: T) extends MacroUserError[T]
-case class ImplicitPossibleNotFound[T](name: String, sourceType: T) extends MacroUserError[T]
-case class ImplicitIndexNotFound[T](name: String, sourceType: T, indexType: T) extends MacroUserError[T]
-case class CopyMethodNotFound[T](name: String, sourceType: T) extends MacroUserError[T]
-case class CopyMethodNotAMethod[T](name: String, sourceType: T) extends MacroUserError[T]
-case class CopyMethodHasMultiParamLists[T](name: String, sourceType: T) extends MacroUserError[T]
-case class CopyMethodHasNoArguments[T](name: String, sourceType: T) extends MacroUserError[T]
-case class CopyMethodLacksNamedArgument[T](name: String, sourceType: T) extends MacroUserError[T]
-case class CopyMethodLacksParameterDefaults[T](name: String, sourceType: T, argsWithNoDefault: List[String]) extends MacroUserError[T]
+object UserError {
+  case class GetterOpticRequired(finalOpticType: OpticType) extends UserError[Nothing]
+  case class SetterOpticRequired(finalOpticType: OpticType) extends UserError[Nothing]
+  case class NameNotFound[T](name: String, sourceType: T) extends UserError[T]
+  case class NameNotAMethod[T](name: String, sourceType: T) extends UserError[T]
+  case class NameHasArguments[T](name: String, sourceType: T) extends UserError[T]
+  case class NameHasMultiParamLists[T](name: String, sourceType: T) extends UserError[T]
+  case class InterpNotAnOptic[T](name: String, actualType: T) extends UserError[T]
+  case class WrongKindOfOptic[T](name: String, sourceType: T, targetType: T, from: OpticType, to: OpticType) extends UserError[T]
+  case class TypesDontMatch[T](name: String, sourceType: T, targetType: T, expectedType: T, actualType: T) extends UserError[T]
+  case class ImplicitEachNotFound[T](name: String, sourceType: T) extends UserError[T]
+  case class ImplicitPossibleNotFound[T](name: String, sourceType: T) extends UserError[T]
+  case class ImplicitIndexNotFound[T](name: String, sourceType: T, indexType: T) extends UserError[T]
+  case class CopyMethodNotFound[T](name: String, sourceType: T) extends UserError[T]
+  case class CopyMethodNotAMethod[T](name: String, sourceType: T) extends UserError[T]
+  case class CopyMethodHasMultiParamLists[T](name: String, sourceType: T) extends UserError[T]
+  case class CopyMethodHasNoArguments[T](name: String, sourceType: T) extends UserError[T]
+  case class CopyMethodLacksNamedArgument[T](name: String, sourceType: T) extends UserError[T]
+  case class CopyMethodLacksParameterDefaults[T](name: String, sourceType: T, argsWithNoDefault: List[String]) extends UserError[T]
+}
 
-sealed trait MacroInternalError[+T] extends GogglesError[T] {
-  def map[U](f: T => U): MacroInternalError[U] = this match {
+sealed trait InternalError[+T] extends GogglesError[T] {
+  import InternalError._
+  def map[U](f: T => U): InternalError[U] = this match {
     case UnexpectedIndexStructure(sourceType, indexType) => UnexpectedIndexStructure(f(sourceType), f(indexType))
     case UnexpectedOpticKind(actualType, numTypeArgs) => UnexpectedOpticKind(f(actualType), numTypeArgs)
     case x @ OpticInfoNotFound(_) => x
@@ -77,10 +87,13 @@ sealed trait MacroInternalError[+T] extends GogglesError[T] {
     case x @ NotEnoughArguments => x
   }
 }
-case class OpticInfoNotFound(label: String) extends MacroInternalError[Nothing]
-case object UnexpectedEachStructure extends MacroInternalError[Nothing]
-case object UnexpectedPossibleStructure extends MacroInternalError[Nothing]
-case class UnexpectedIndexStructure[T](sourceType: T, indexType: T) extends MacroInternalError[T]
-case class UnexpectedOpticKind[T](actualType: T, numTypeArgs: Int) extends MacroInternalError[T]
-case class GetVerbNotFound(opticType: OpticType) extends MacroInternalError[Nothing]
-case object NotEnoughArguments extends MacroInternalError[Nothing]
+
+object InternalError {
+  case class OpticInfoNotFound(label: String) extends InternalError[Nothing]
+  case object UnexpectedEachStructure extends InternalError[Nothing]
+  case object UnexpectedPossibleStructure extends InternalError[Nothing]
+  case class UnexpectedIndexStructure[T](sourceType: T, indexType: T) extends InternalError[T]
+  case class UnexpectedOpticKind[T](actualType: T, numTypeArgs: Int) extends InternalError[T]
+  case class GetVerbNotFound(opticType: OpticType) extends InternalError[Nothing]
+  case object NotEnoughArguments extends InternalError[Nothing]
+}

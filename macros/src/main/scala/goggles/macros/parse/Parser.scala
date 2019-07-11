@@ -1,42 +1,38 @@
 package goggles.macros.parse
 
-import goggles.macros.errors._
+import goggles.macros.At
 import goggles.macros.lex.Token
+import goggles.macros.errors.{ErrorAt, SyntaxError}
 
 import scala.util.{Try, Success, Failure}
-import scalaz.{Name => _, NonEmptyList}
-
 
 private[goggles] object Parser {
-  import AST._
-  import Token._
 
-
-  def parseAppliedLens(tokens: List[Token]): Either[SyntaxError, AppliedLens] = {
+  def parseAppliedLens(tokens: List[At[Token]]): Either[ErrorAt[Nothing], AST] = {
     tokens match {
-      case Nil => Left(EmptyError)
-      case Hole :: rest => parseComposedLens(rest).right.map(AppliedLens)
-      case Unrecognised(c) :: _ => Left(UnrecognisedChar(c))
-      case tok :: _ => Left(NonInterpolatedStart(tok))
+      case Nil => Left(SyntaxError.EmptyError.at(0))
+      case At(Token.Hole, _) :: rest => parseAST(rest)
+      case At(Token.Unrecognised(c), offset) :: _ => Left(SyntaxError.UnrecognisedChar(c).at(offset))
+      case At(token, offset) :: _ => Left(SyntaxError.NonInterpolatedStart(token).at(offset))
     }
   }
 
-  def parseUnappliedLens(tokens: List[Token]): Either[SyntaxError, ComposedLens] = {
+  def parseUnappliedLens(tokens: List[At[Token]]): Either[ErrorAt[Nothing], AST] = {
     tokens match {
-      case Nil => Left(EmptyError)
-      case Hole :: rest => parseComposedLens(Dot :: Hole :: rest)
-      case Unrecognised(c) :: _ => Left(UnrecognisedChar(c))
-      case tok :: _ => Left(NonInterpolatedStart(tok))
+      case Nil => Left(SyntaxError.EmptyError.at(0))
+      case At(Token.Hole, offset) :: rest => parseAST(Token.Dot.at(offset-1) :: Token.Hole.at(offset) :: rest)
+      case At(Token.Unrecognised(c), offset) :: _ => Left(SyntaxError.UnrecognisedChar(c).at(offset))
+      case At(token, offset) :: _ => Left(SyntaxError.NonInterpolatedStart(token).at(offset))
     }
   }
 
-  private def parseComposedLens(tokens: List[Token]): Either[SyntaxError, ComposedLens] = {
+  private def parseAST(tokens: List[At[Token]]): Either[ErrorAt[Nothing], AST] = {
 
-    def loop(remaining: List[Token], exprs: List[LensExpr]): Either[SyntaxError, ComposedLens] = {
+    def loop(remaining: List[At[Token]], exprs: List[At[LensExpr]]): Either[ErrorAt[Nothing], AST] = {
       parseLensExpr(remaining) match {
         case (Nil, Right(lensExpr)) =>
-          val h :: t = (lensExpr :: exprs).reverse
-          Right(ComposedLens(NonEmptyList(h, t: _*)))
+          val list = (lensExpr :: exprs).reverse
+          Right(AST(list.head, list.tail))
 
         case (rest, Right(lensExpr)) => loop(rest, lensExpr :: exprs) 
         case (_, Left(err)) => Left(err) 
@@ -46,43 +42,46 @@ private[goggles] object Parser {
     loop(tokens, Nil)
   }
 
-  def parseLensExpr(tokens: List[Token]): (List[Token], Either[SyntaxError, LensExpr]) = {
+  def parseLensExpr(tokens: List[At[Token]]): (List[At[Token]], Either[ErrorAt[Nothing], At[LensExpr]]) = {
     tokens match {
-      case Dot :: tok :: rest => (rest, parseLensRef(tok).right.map(RefExpr))
-      case Dot :: Nil  => (Nil, Left(EndingDot))
-      case Star :: rest => (rest, Right(EachExpr))
-      case Question :: rest => (rest, Right(OptExpr))
-      case OpenBracket :: CloseBracket :: rest => (rest, Left(NoIndexSupplied))
-      case OpenBracket :: tok :: CloseBracket :: rest => 
-        (rest, parseIndex(tok).right.map(IndexedExpr))
-      case Nil => (Nil, Left(EmptyError))
-      case OpenBracket :: rest if !rest.contains(CloseBracket) => (rest, Left(UnclosedOpenBracket))
-      case OpenBracket :: tok :: rest => (rest, Left(InvalidIndexSupplied(tok)))
-      case CloseBracket :: rest => (rest, Left(UnexpectedCloseBracket))
-      case Name(n) :: rest => (rest, Left(NameWithNoDot(n)))
-      case Hole :: rest => (rest, Left(InterpOpticWithNoDot))
-      case Unrecognised(c) :: rest => (rest, Left(UnrecognisedChar(c)))
+      case At(Token.Dot, _) :: tokenAt :: rest => (rest, parseLensRef(tokenAt).map(ref => LensExpr.Ref(ref).at(tokenAt.offset)))
+      case At(Token.Dot, offset) :: Nil  => (Nil, Left(SyntaxError.EndingDot.at(offset)))
+      case At(Token.Star, offset) :: rest => (rest, Right(LensExpr.Each.at(offset)))
+      case At(Token.Question, offset) :: rest => (rest, Right(LensExpr.Opt.at(offset)))
+      case At(Token.OpenBracket,_) :: At(Token.CloseBracket, offset) :: rest => (rest, Left(SyntaxError.NoIndexSupplied.at(offset)))
+      case At(Token.OpenBracket,_) :: tokenAt :: At(Token.CloseBracket,_) :: rest => (rest, parseIndex(tokenAt).map(ix => LensExpr.Indexed(ix).at(tokenAt.offset)))
+      case Nil => (Nil, Left(SyntaxError.EmptyError.at(0)))
+      case At(Token.OpenBracket, offset) :: rest 
+        if !rest.exists { 
+          case At(Token.CloseBracket,_) => true; 
+          case _ => false 
+        } => (rest, Left(SyntaxError.UnclosedOpenBracket.at(offset)))
+      case At(Token.OpenBracket,_) :: At(token, offset) :: rest => (rest, Left(SyntaxError.InvalidIndexSupplied(token).at(offset)))
+      case At(Token.CloseBracket, offset) :: rest => (rest, Left(SyntaxError.UnexpectedCloseBracket.at(offset)))
+      case At(Token.Name(n), offset) :: rest => (rest, Left(SyntaxError.NameWithNoDot(n).at(offset)))
+      case At(Token.Hole, offset) :: rest => (rest, Left(SyntaxError.InterpOpticWithNoDot.at(offset)))
+      case At(Token.Unrecognised(c), offset) :: rest => (rest, Left(SyntaxError.UnrecognisedChar(c).at(offset)))
     }
   }
 
-  def parseLensRef(t: Token): Either[SyntaxError, LensRef] = {
-    t match {
-      case Name(name) => Right(NamedLensRef(name)) 
-      case Hole => Right(InterpLensRef)
-      case CloseBracket => Left(UnexpectedCloseBracket)
-      case tok => Left(InvalidAfterDot(tok))
+  def parseLensRef(tokenAt: At[Token]): Either[ErrorAt[Nothing], LensRef] = {
+    tokenAt match {
+      case At(Token.Name(name), _) => Right(LensRef.Named(name)) 
+      case At(Token.Hole, _) => Right(LensRef.Interpolated)
+      case At(Token.CloseBracket, offset) => Left(SyntaxError.UnexpectedCloseBracket.at(offset))
+      case At(token, offset) => Left(SyntaxError.InvalidAfterDot(token).at(offset))
     }
   }
 
-  def parseIndex(t: Token): Either[SyntaxError, Index] = {
-    t match {
-      case Name(intStr) => Try(intStr.toInt) match {
-        case Success(i) => Right(LiteralIndex(i))
-        case Failure(_) => Left(VerbatimIndexNotInt(intStr))
+  def parseIndex(tokenAt: At[Token]): Either[ErrorAt[Nothing], Index] = {
+    tokenAt match {
+      case At(Token.Name(intStr), offset) => Try(intStr.toInt) match {
+        case Success(i) => Right(Index.Literal(i))
+        case Failure(_) => Left(SyntaxError.VerbatimIndexNotInt(intStr).at(offset))
       }
-      case Hole => Right(InterpIndex)
-      case CloseBracket => Left(NoIndexSupplied)
-      case x => Left(InvalidIndexSupplied(x))
+      case At(Token.Hole, _) => Right(Index.Interpolated)
+      case At(Token.CloseBracket, offset) => Left(SyntaxError.NoIndexSupplied.at(offset))
+      case At(x, offset) => Left(SyntaxError.InvalidIndexSupplied(x).at(offset))
     }
   }
 }

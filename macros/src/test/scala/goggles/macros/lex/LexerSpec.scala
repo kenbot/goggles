@@ -1,6 +1,7 @@
 package goggles.macros.lex
 
-import goggles.macros.lex.Token._
+import goggles.macros.At
+
 import org.specs2._
 
 
@@ -11,38 +12,43 @@ class LexerSpec extends Specification with ScalaCheck { def is =
       Make each closed bracket a token $closeBrackets
       Make each dot a token $dots
       Make each star a token $stars
+      Chop off a name when a star is encountered $nameThenStar
+      Chop off a name when an open bracket is encountered $nameThenOpenBracket
+      Chop off a name when a question mark is encountered $nameThenQuestion
       Make each question mark a token $questionMarks
-      Record a hole for the gaps between each fragment $holes
       Record consecutive identifier characters as a single name $identifiers
     """
 
   def openBrackets =
-    Lexer(List("[[[")) === List(OpenBracket, OpenBracket, OpenBracket)
+    Lexer(List(Fragment.Verbatim("[[[", 0))) === List(At(Token.OpenBracket, 0), At(Token.OpenBracket, 1), At(Token.OpenBracket, 2))
 
   def closeBrackets =
-    Lexer(List("]]]")) === List(CloseBracket, CloseBracket, CloseBracket)
+    Lexer(List(Fragment.Verbatim("]]]", 0))) === List(At(Token.CloseBracket, 0), At(Token.CloseBracket, 1), At(Token.CloseBracket, 2))
 
   def dots =
-    Lexer(List("...")) === List(Dot, Dot, Dot)
+    Lexer(List(Fragment.Verbatim("...", 0))) === List(At(Token.Dot, 0), At(Token.Dot, 1), At(Token.Dot, 2))
 
   def stars =
-    Lexer(List("***")) === List(Star, Star, Star)
+    Lexer(List(Fragment.Verbatim("***", 0))) === List(At(Token.Star, 0), At(Token.Star, 1), At(Token.Star, 2))
+
+  def nameThenStar =
+    Lexer(List(Fragment.Verbatim("aaa*", 0))) === List(At(Token.Name("aaa"), 0), At(Token.Star, 3))
+
+  def nameThenQuestion =
+    Lexer(List(Fragment.Verbatim("aaa?", 0))) === List(At(Token.Name("aaa"), 0), At(Token.Question, 3))
+
+  def nameThenOpenBracket =
+    Lexer(List(Fragment.Verbatim("aaa[", 0))) === List(At(Token.Name("aaa"), 0), At(Token.OpenBracket, 3))
 
   def questionMarks =
-    Lexer(List("???")) === List(Question, Question, Question)
-
-  def holes = prop { fragments: List[String] =>
-    fragments.nonEmpty ==> {
-      Lexer(fragments).count(_ == Hole) === fragments.size - 1
-    }
-  }
+    Lexer(List(Fragment.Verbatim("???",0))) === List(At(Token.Question, 0), At(Token.Question, 1), At(Token.Question, 2))
 
   def identifiers =
-    Lexer(List(".alpha123.")) === List(Dot, Name("alpha123"), Dot)
+    Lexer(List(Fragment.Verbatim(".alpha123.", 0))) === List(At(Token.Dot, 0), At(Token.Name("alpha123"), 1), At(Token.Dot, 9))
 
   def gibberish = prop { char: Char =>
     (!char.isLetterOrDigit && !Set('[', ']', '.', '*', '_')(char)) ==> {
-      Lexer(List(char.toString)) === List(Unrecognised(char))
+      Lexer(List(Fragment.Verbatim(char.toString, 0))) === List(Token.Unrecognised(char).at(0))
     }
   }
 }

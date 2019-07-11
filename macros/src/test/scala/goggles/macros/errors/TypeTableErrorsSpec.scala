@@ -16,7 +16,7 @@ class TypeTableErrorsSpec extends Specification with ScalaCheck { def is =
     val opticInfo = OpticInfo("bob", u.typeOf[Int], u.typeOf[Int], OpticType.TraversalType, OpticType.TraversalType)
 
     val table = TypeTableErrors.table(mode,
-      GetterOpticRequired(OpticType.SetterType),
+      UserError.GetterOpticRequired(OpticType.SetterType),
       List(opticInfo))
 
     table === Table.empty

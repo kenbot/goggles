@@ -1,90 +1,73 @@
 package goggles.macros.interpret
 
-import goggles.macros.errors.{GogglesError, NotEnoughArguments}
+import goggles.macros.errors.{GogglesError, InternalError, ErrorAt}
 
-import scalaz._
-
-private[goggles] case class ParseState[T,Arg](args: List[Arg], infos: List[OpticInfo[T]])
-
-private[goggles] trait Parse[T, Arg, A] {
+private[goggles] trait Parse[Type, Arg, A] {
   self =>
 
-  def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],A], ParseState[T,Arg])
+  def apply(state: MacroState[Type,Arg]): (Either[ErrorAt[Type],A], MacroState[Type,Arg])
 
-  final def map[B](f: A => B) = new Parse[T,Arg,B] {
-    def apply(state0: ParseState[T,Arg]): (Either[GogglesError[T],B], ParseState[T,Arg]) = {
+  final def map[B](f: A => B): Parse[Type,Arg,B] = {
+    state0 => {
       val (errorOrA, state) = self(state0)
       (errorOrA.right.map(f), state)
     }
   }
 
-  final def flatMap[B](f: A => Parse[T,Arg,B]) = new Parse[T,Arg,B] {
-    def apply(state0: ParseState[T,Arg]): (Either[GogglesError[T],B], ParseState[T,Arg]) = {
-      self(state0) match {
-        case (Right(a), state) => f(a)(state)
-        case (Left(err), state) => (Left(err), state)
-      }
+  final def flatMap[B](f: A => Parse[Type,Arg,B]): Parse[Type,Arg,B] = {
+    state0 => self(state0) match {
+      case (Right(a), state) => f(a)(state)
+      case (Left(err), state) => (Left(err), state)
     }
   }
 
-  final def eval(args: List[Arg]): (Either[GogglesError[T],A], List[OpticInfo[T]]) = {
-    val (errorOrA, ParseState(_, infos)) = apply(ParseState(args, Nil))
-    (errorOrA, infos.reverse)
+  final def eval(args: List[Arg]): MacroResult[Type, A] = {
+    val (errorOrA, macroState) = apply(MacroState.blank(args))
+    MacroResult(errorOrA, macroState.infos)
   }
 }
 
 private[goggles] object Parse {
-  def pure[T,Arg,A](a: => A) = new Parse[T,Arg,A] {
-    def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],A], ParseState[T,Arg]) = {
-      (Right(a), state)
-    }
-  }
+  def pure[Type, Arg, A](a: => A): Parse[Type,Arg,A] = 
+    state => (Right(a), state)
 
-  def fromOption[T, Arg, A](opt: Option[A], orElse: => GogglesError[T]): Parse[T, Arg, A] = opt match {
+  def fromOption[Type, Arg, A](opt: Option[A], orElse: => GogglesError[Type]): Parse[Type, Arg, A] = opt match {
     case Some(a) => pure(a)
     case None => raiseError(orElse)
   }
 
-  def fromEither[T, Arg, A](either: Either[GogglesError[T],A]) = new Parse[T,Arg,A] {
-    def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],A], ParseState[T,Arg]) = {
-      (either, state)
+  def getMacroState[Type, Arg]: Parse[Type, Arg, MacroState[Type, Arg]] = 
+    state => (Right(state), state)
+
+  def getCurrentExprOffset[Type, Arg]: Parse[Type, Arg, Int] = 
+    getMacroState.map(_.currentExprOffset)
+
+  def setCurrentExprOffset[Type, Arg](offset: Int): Parse[Type, Arg, Unit] = 
+    state => (Right(()), state.copy(currentExprOffset = offset))
+
+  def fromEither[Type, Arg, A](either: Either[ErrorAt[Type], A]): Parse[Type,Arg,A] = 
+    state => (either, state)
+
+  def raiseError[Type, Arg, A](e: GogglesError[Type]): Parse[Type, Arg, A] = 
+    state => (Left(e.at(state.currentExprOffset)), state)
+
+  def getLastOpticInfo[Type,Arg]: Parse[Type, Arg, Option[OpticInfo[Type]]] = 
+      state => (Right(state.lastOpticInfo), state)
+
+  def getLastOpticInfoOrElse[Type,Arg](orElse: => GogglesError[Type]): Parse[Type, Arg, OpticInfo[Type]] = {
+    state => state.lastOpticInfo match {
+      case Some(info) => (Right(info), state)
+      case None => (Left(orElse.at(state.currentExprOffset)), state)
     }
   }
 
-  def raiseError[T, Arg, A](e: GogglesError[T]) = new Parse[T, Arg, A] {
-    def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],A], ParseState[T,Arg]) = {
-      (Left(e), state)
-    }
-  }
+  def storeOpticInfo[Type,Arg](info: OpticInfo[Type]): Parse[Type, Arg, Unit] = 
+    state => (Right(()), state.addOpticInfo(info))
 
-  def getLastOpticInfo[T,Arg] = new Parse[T, Arg, Option[OpticInfo[T]]] {
-    def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],Option[OpticInfo[T]]], ParseState[T,Arg]) = {
-      (Right(state.infos.headOption), state)
+  def popArg[Type, Arg]: Parse[Type, Arg, Arg] = {
+    state0 => state0.popArg match {
+      case Some((arg, state)) => (Right(arg), state)
+      case None => (Left(InternalError.NotEnoughArguments.at(state0.currentExprOffset)), state0)
     }
-  }
-
-  def getLastOpticInfoOrElse[T,Arg](orElse: => GogglesError[T]) = new Parse[T, Arg, OpticInfo[T]] {
-    def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],OpticInfo[T]], ParseState[T,Arg]) = state.infos match {
-      case info :: _ => (Right(info), state)
-      case Nil => (Left(orElse), state)
-    }
-  }
-
-  def storeOpticInfo[T,Arg](info: OpticInfo[T]) = new Parse[T, Arg, Unit]  {
-    def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],Unit], ParseState[T,Arg]) = {
-      (Right(()), ParseState(state.args, info :: state.infos))
-    }
-  }
-
-  def popArg[T, Arg] = new Parse[T, Arg, Arg] {
-    def apply(state: ParseState[T,Arg]): (Either[GogglesError[T],Arg], ParseState[T,Arg]) = state.args match {
-      case arg :: rest => (Right(arg), ParseState(rest, state.infos))
-      case Nil => (Left(NotEnoughArguments), state)
-    }
-  }
-
-  implicit def monad[T,Arg] = new Monad[({type f[a]=Parse[T,Arg,a]})#f] {
-    override def bind[A, B](fa: Parse[T,Arg,A])(f: A => Parse[T,Arg,B]): Parse[T,Arg,B] = fa.flatMap(f)
-    override def point[A](a: => A): Parse[T,Arg,A] = pure(a)
   }
 }

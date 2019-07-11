@@ -1,8 +1,11 @@
 package goggles.macros.lex
+import goggles.macros.At
 
-private[goggles] sealed abstract class Token(label: String) {
-  override def toString = label
+private[goggles] sealed abstract class Token(val label: String) {
+  def at(offset: Int): At[Token] = 
+    At(this, offset)
 }
+
 
 private[goggles] object Token {
   case class Name(name: String) extends Token(name)

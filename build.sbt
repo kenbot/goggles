@@ -5,8 +5,8 @@ resolvers += Resolver.sonatypeRepo("snapshots")
 
 val commonSettings = Seq(
   organization := "com.github.kenbot",
-  scalaVersion in ThisBuild := "2.12.4",
-  crossScalaVersions := Seq("2.11.8", "2.12.4"),
+  scalaVersion in ThisBuild := "2.12.7",
+  crossScalaVersions := Seq("2.11.8", "2.12.7"),
   scalacOptions += "-Ywarn-unused-import",
   scalacOptions in (Compile, console) -= "-Ywarn-unused-import",
   scalacOptions in (Test, console) -= "-Ywarn-unused-import"
@@ -60,7 +60,6 @@ lazy val noPublishSettings = Seq(
   publishArtifact := false,
   skip in publish := true
 )
-    
 
 val publishSettings = Seq(
   publishMavenStyle := true,
@@ -115,4 +114,5 @@ initialCommands in dslProject := "import goggles._;"
 initialCommands in (dslProject, Test) := """
   import goggles._;
   import Fixture._;
+  import testdsl._;
 """

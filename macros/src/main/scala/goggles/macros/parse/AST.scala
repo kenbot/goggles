@@ -1,29 +1,39 @@
 package goggles.macros.parse
+import goggles.macros.At
 
-import scalaz.NonEmptyList
+case class AST(head: At[LensExpr], tail: List[At[LensExpr]]) {
+  def exprs: List[At[LensExpr]] = head :: tail
+}
 
-private[goggles] object AST {
+sealed trait LensExpr {
+  def isInterpolated: Boolean = false
 
-  case class ComposedLens(exprs: NonEmptyList[LensExpr]) {
-    def head: LensExpr = exprs.head
-    def tail: List[LensExpr] = exprs.tail.toList
-    def toList: List[LensExpr] = exprs.list.toList
+  def at(offset: Int): At[LensExpr] = At(this, offset)
+}
+
+object LensExpr {
+  case class Ref(lens: LensRef) extends LensExpr {
+    override def isInterpolated: Boolean = lens == LensRef.Interpolated
   }
 
-  case class AppliedLens(lens: ComposedLens)
+  case object Each extends LensExpr
 
-  sealed trait LensExpr
-  case class RefExpr(lens: LensRef) extends LensExpr
-  case object EachExpr extends LensExpr
-  case object OptExpr extends LensExpr
-  case class IndexedExpr(ix: Index) extends LensExpr
+  case object Opt extends LensExpr
+  
+  case class Indexed(index: Index) extends LensExpr {
+    override def isInterpolated: Boolean = index == Index.Interpolated
+  }
+}
 
-  sealed trait LensRef
-  case class NamedLensRef(name: String) extends LensRef
-  case object InterpLensRef extends LensRef
+sealed trait LensRef
+object LensRef {
+  case class Named(name: String) extends LensRef
+  case object Interpolated extends LensRef
+}
 
-  sealed trait Index
-  case class LiteralIndex(i: Int) extends Index
-  case object InterpIndex extends Index
+sealed trait Index
+object Index {
+  case class Literal(index: Int) extends Index
+  case object Interpolated extends Index
 }
 
