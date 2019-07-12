@@ -80,11 +80,11 @@ sealed trait InternalError[+T] extends GogglesError[T] {
   def map[U](f: T => U): InternalError[U] = this match {
     case UnexpectedIndexStructure(sourceType, indexType) => UnexpectedIndexStructure(f(sourceType), f(indexType))
     case UnexpectedOpticKind(actualType, numTypeArgs) => UnexpectedOpticKind(f(actualType), numTypeArgs)
-    case x @ OpticInfoNotFound(_) => x
-    case x @ UnexpectedEachStructure => x
-    case x @ UnexpectedPossibleStructure => x
-    case x @ GetVerbNotFound(_) => x
-    case x @ NotEnoughArguments => x
+    case OpticInfoNotFound(label) => OpticInfoNotFound(label)
+    case UnexpectedEachStructure => UnexpectedEachStructure
+    case UnexpectedPossibleStructure => UnexpectedPossibleStructure
+    case GetVerbNotFound(opticType) => GetVerbNotFound(opticType)
+    case NotEnoughArguments => NotEnoughArguments
   }
 }
 

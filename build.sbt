@@ -5,11 +5,11 @@ resolvers += Resolver.sonatypeRepo("snapshots")
 
 val commonSettings = Seq(
   organization := "com.github.kenbot",
-  scalaVersion in ThisBuild := "2.12.7",
-  crossScalaVersions := Seq("2.11.8", "2.12.7"),
-  scalacOptions += "-Ywarn-unused-import",
-  scalacOptions in (Compile, console) -= "-Ywarn-unused-import",
-  scalacOptions in (Test, console) -= "-Ywarn-unused-import"
+  scalaVersion in ThisBuild := "2.13.0",
+  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0"),
+  scalacOptions += "-Ywarn-unused:imports",
+  scalacOptions in (Compile, console) -= "-Ywarn-unused:imports",
+  scalacOptions in (Test, console) -= "-Ywarn-unused:imports"
 )
 
 lazy val goggles = project.in(file("."))
@@ -30,13 +30,13 @@ lazy val macrosProject = (project in file("macros")).settings(
   scalacOptions += "-language:experimental.macros"
 )
 
-val specs2Version = "3.8.6"
+val specs2Version = "4.6.0"
 val specs2Deps = Seq(
   "org.specs2" %% "specs2-core" % specs2Version % "test",
   "org.specs2" %% "specs2-scalacheck" % specs2Version % "test"
 )
 
-val monocleVersion = "1.5.0"
+val monocleVersion = "1.6.0-RC1"
 val monocleDeps = Seq(
   "com.github.julien-truffaut"  %%  "monocle-core"    % monocleVersion
 )
