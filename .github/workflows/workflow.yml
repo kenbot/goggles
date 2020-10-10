@@ -1,0 +1,40 @@
+name: Main workflow
+
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+  schedule:
+    - cron: "0 0 * * 5"
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: coursier/cache-action@v3
+      - run: |
+          curl -o cs -qL https://git.io/coursier-cli
+          sh cs launch sbt -- test
+
+  scalafmt:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: coursier/cache-action@v3
+      - run: |
+          curl -o cs -qL https://git.io/coursier-cli
+          sh cs launch scalafmt -- --mode diff --diff-branch master --test
