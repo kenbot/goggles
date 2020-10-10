@@ -3,6 +3,8 @@ import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 resolvers += Resolver.sonatypeRepo("releases")
 resolvers += Resolver.sonatypeRepo("snapshots")
 
+enablePlugins(ScalaJSPlugin)
+
 val commonSettings = Seq(
   organization := "com.github.kenbot",
   scalaVersion in ThisBuild := "2.13.0",
@@ -12,41 +14,60 @@ val commonSettings = Seq(
   scalacOptions in (Test, console) -= "-Ywarn-unused:imports"
 )
 
-lazy val goggles = project.in(file("."))
+lazy val goggles = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .withoutSuffixFor(JVMPlatform)
+  .in(file("."))
   .settings(moduleName := "goggles")
   .settings(commonSettings)
   .settings(noPublishSettings)
   .aggregate(dslProject, macrosProject)
   .dependsOn(dslProject, macrosProject)
 
-lazy val macrosProject = (project in file("macros")).settings(
-  commonSettings,
-  libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-  libraryDependencies += "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
-  libraryDependencies ++= specs2Deps,
-  publishSettings,
-  moduleName := "goggles-macros",
-  scalacOptions += "-Yrangepos",
-  scalacOptions += "-language:experimental.macros"
-)
-
-val specs2Version = "4.6.0"
-val specs2Deps = Seq(
-  "org.specs2" %% "specs2-core" % specs2Version % "test",
-  "org.specs2" %% "specs2-scalacheck" % specs2Version % "test"
-)
-
-val monocleVersion = "1.6.0-RC1"
-val monocleDeps = Seq(
-  "com.github.julien-truffaut"  %%  "monocle-core"    % monocleVersion
-)
-
-lazy val dslProject = (project in file("dsl")).
-  dependsOn(macrosProject).
-  settings(
+lazy val macrosProject = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .withoutSuffixFor(JVMPlatform)
+  .in(file("macros"))
+  .settings(
     commonSettings,
-    libraryDependencies ++= monocleDeps,
-    libraryDependencies ++= specs2Deps,
+    libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+    monocleDeps,
+    specs2Deps,
+    moduleName := "goggles-macros",
+    scalacOptions += "-Yrangepos",
+    scalacOptions += "-language:experimental.macros"
+  )
+  .jvmSettings(
+    publishSettings
+  )
+  .jsSettings(
+    noPublishSettings,
+    test in Test := streams.value.log.warn(
+      "JSPlatform tests disabled in macrosProject since macros are JVM compile-time feature."
+    )
+  )
+
+val specs2Version = "4.10.3"
+val specs2Deps = Seq(
+  libraryDependencies += "org.specs2" %%% "specs2-core" % specs2Version % "test",
+  libraryDependencies += "org.specs2" %%% "specs2-scalacheck" % specs2Version % "test"
+)
+
+val monocleVersion = "1.7.3"
+val monocleDeps = Seq(
+  libraryDependencies += "com.github.julien-truffaut" %%% "monocle-core" % monocleVersion
+)
+
+lazy val dslProject = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .withoutSuffixFor(JVMPlatform)
+  .in(file("dsl"))
+  .dependsOn(macrosProject)
+  .settings(
+    commonSettings,
+    monocleDeps,
+    specs2Deps,
+    initialCommandSettings,
     publishSettings,
     moduleName := "goggles-dsl",
     scalacOptions += "-Yrangepos",
@@ -68,7 +89,7 @@ val publishSettings = Seq(
     if (isSnapshot.value)
       Some("snapshots" at nexus + "content/repositories/snapshots")
     else
-      Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+      Some("releases" at nexus + "service/local/staging/deploy/maven2")
   },
   sonatypeProfileName := "com.github.kenbot",
   publishArtifact in Test := false,
@@ -109,10 +130,11 @@ val publishSettings = Seq(
   )
 )
 
-initialCommands in dslProject := "import goggles._;"
-
-initialCommands in (dslProject, Test) := """
+lazy val initialCommandSettings = Seq(
+  initialCommands := "import goggles._;",
+  initialCommands in Test := """
   import goggles._;
   import Fixture._;
   import testdsl._;
 """
+)
